@@ -7,51 +7,388 @@
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
 <style>
-  .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
-  @media (max-width:720px){.layout{grid-template-columns:1fr}}
-  .tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:16px}
-  .tabs button{background:transparent;color:var(--muted);font-weight:600;border-radius:0;
-    padding:10px 18px;border:0;border-bottom:3px solid transparent;margin-bottom:-2px}
-  .tabs button:hover{background:#f7f9fc;color:var(--text)}
-  .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
-  .q-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
-  .q-item{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
-  .q-item .q-text{font-weight:600;margin-bottom:8px}
-  .q-item .q-choices{display:flex;flex-direction:column;gap:4px;font-size:.92rem;padding:0;margin:0}
-  .q-item .q-choices li{list-style:none;padding:6px 10px;border-radius:6px;background:#f7f9fc}
-  .q-item .q-choices li.correct{background:#dcfce7;color:#166534;font-weight:600}
-  .q-item .q-actions{display:flex;gap:6px;margin-top:10px}
-  .q-item .q-meta{color:var(--muted);font-size:.8rem;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
-  .q-item .q-tag{background:#eff4ff;color:var(--primary);padding:2px 8px;border-radius:99px;
-    font-size:.75rem;font-weight:600}
-  .choice-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-  .choice-row input[type=radio]{flex:0 0 auto;width:18px;height:18px}
-  .choice-row input[type=text]{flex:1}
-  .modal-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;
-    display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
-  .modal{background:#fff;border-radius:12px;box-shadow:var(--shadow-lg);
-    max-width:640px;width:100%;padding:24px;max-height:90vh;overflow-y:auto}
-  .modal h2{margin-top:0}
-  .bulk-help{background:#f7f9fc;border-radius:8px;padding:12px;
-    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;
-    white-space:pre;overflow-x:auto;margin:10px 0}
-  .bulk-errors{color:var(--danger);font-size:.85rem;margin-top:8px}
-  .bulk-errors ul{margin:4px 0 0;padding-left:20px}
-  .empty-period{text-align:center;padding:40px 20px;color:var(--muted)}
-  .passage-item{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
-  .passage-item .p-title{font-weight:700;margin-bottom:6px}
-  .passage-item .p-text{color:var(--muted);font-size:.9rem;line-height:1.5;
-    max-height:100px;overflow:hidden;white-space:pre-wrap}
-  .passage-item .p-actions{display:flex;gap:6px;margin-top:10px}
+  /* ---------- page header ---------- */
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .page-head h1 { margin-bottom: 4px; }
+  .page-head .sub { color: var(--text-muted); font-size: .92rem; margin: 0; }
+
+  /* ---------- selector bar ---------- */
+  .selector-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: 18px;
+  }
+  .selector-bar label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .selector-bar select {
+    width: auto;
+    min-width: 160px;
+    padding: 9px 14px;
+    font-size: .95rem;
+    font-weight: 500;
+  }
+  .selector-bar .divider {
+    color: var(--text-subtle);
+    font-size: 1.1rem;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-xs);
+    width: fit-content;
+  }
+  .tabs button {
+    background: transparent;
+    color: var(--text-muted);
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 18px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background .12s, color .12s;
+  }
+  .tabs button:hover { background: var(--card-hover); color: var(--text); box-shadow: none; }
+  .tabs button.active {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(37,99,235,.25);
+  }
+  .tabs button.active:hover { background: var(--primary); color: #fff; }
+  .tabs .count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: rgba(255,255,255,.25);
+    font-size: .75rem;
+    font-weight: 700;
+  }
+  .tabs button:not(.active) .count {
+    background: var(--border);
+    color: var(--text-muted);
+  }
+
+  /* ---------- empty state ---------- */
+  .empty-hero {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    padding: 60px 30px;
+    text-align: center;
+  }
+  .empty-hero .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 2rem;
+    margin-bottom: 18px;
+  }
+  .empty-hero h2 {
+    font-size: 1.3rem;
+    margin: 0 0 8px;
+  }
+  .empty-hero p {
+    color: var(--text-muted);
+    font-size: .95rem;
+    max-width: 440px;
+    margin: 0 auto 22px;
+    line-height: 1.6;
+  }
+  .empty-hero .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- questions grid ---------- */
+  .q-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+  }
+  @media (max-width: 500px) {
+    .q-grid { grid-template-columns: 1fr; }
+  }
+
+  .q-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .q-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .q-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: .78rem;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 700;
+  }
+  .q-card-head .left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .q-tag {
+    background: var(--primary-soft);
+    color: var(--primary);
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .q-served {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: .75rem;
+  }
+
+  .q-text {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: 14px;
+    letter-spacing: -0.005em;
+  }
+
+  .q-choices {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .q-choices li {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--bg);
+    font-size: .88rem;
+    line-height: 1.4;
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    color: var(--text-muted);
+  }
+  .q-choices li .letter {
+    flex: 0 0 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .7rem;
+    font-weight: 800;
+    margin-top: 1px;
+  }
+  .q-choices li.correct {
+    background: var(--success-soft);
+    color: var(--success);
+    font-weight: 600;
+  }
+  .q-choices li.correct .letter {
+    background: var(--success);
+    color: #fff;
+  }
+
+  .q-card-foot {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  /* ---------- passage cards ---------- */
+  .p-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    padding: 20px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .p-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+  .p-card .p-title {
+    font-weight: 700;
+    font-size: 1.02rem;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .p-card .p-preview {
+    font-size: .9rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    max-height: 140px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .p-card .p-preview::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--card));
+    pointer-events: none;
+  }
+  .p-card-foot {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .p-card-foot .p-meta {
+    font-size: .82rem;
+    color: var(--text-muted);
+  }
+  .p-card-foot .p-meta b { color: var(--text); }
+
+  /* ---------- sticky toolbar ---------- */
+  .sticky-toolbar {
+    position: sticky;
+    top: 12px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+  }
+  .sticky-toolbar .spacer { flex: 1; }
+
+  /* ---------- modal ---------- */
+  .modal-back {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,.6);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .modal-back.hidden { display: none; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 660px;
+    width: 100%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin-top: 0; }
+
+  .choice-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .choice-row input[type=radio] {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+  }
+  .choice-row input[type=text] { flex: 1; }
+  .choice-row input[type=radio]:checked + input[type=text] {
+    border-color: var(--success);
+    box-shadow: 0 0 0 3px var(--success-soft);
+  }
+
+  .bulk-help {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    white-space: pre;
+    overflow-x: auto;
+    margin: 10px 0;
+    color: var(--text-muted);
+  }
+  .bulk-errors {
+    color: var(--danger);
+    font-size: .85rem;
+    margin-top: 10px;
+  }
+  .bulk-errors ul { margin: 6px 0 0; padding-left: 20px; }
 </style>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">
-    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-    <span>Quiz Platform <strong>Champ</strong></span>
-  </div>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="subjects.html">Subjects</a>
@@ -66,34 +403,41 @@
 </header>
 
 <main class="container">
-  <h1>Question Pool</h1>
-  <p style="color:var(--muted);margin-top:-6px">Add questions or reading passages. Quizzes draw randomly from these.</p>
 
-  <div class="layout">
-    <aside>
-      <div class="card">
-        <label class="field">
-          <span>Subject</span>
-          <select id="selSubject"><option value="">— Select —</option></select>
-        </label>
-        <label class="field">
-          <span>Period</span>
-          <select id="selPeriod" disabled><option value="">— Select subject first —</option></select>
-        </label>
-      </div>
-    </aside>
-
-    <section>
-      <div class="tabs" id="tabs" style="display:none">
-        <button data-tab="questions" class="active">Questions</button>
-        <button data-tab="passages">Passages</button>
-      </div>
-      <div id="content"></div>
-    </section>
+  <div class="page-head">
+    <div>
+      <h1>Question Pool</h1>
+      <p class="sub">Add questions or reading passages. Quizzes pull randomly from here.</p>
+    </div>
   </div>
+
+  <!-- selector bar -->
+  <div class="selector-bar">
+    <label>
+      <span>Subject</span>
+      <select id="selSubject"><option value="">— Select —</option></select>
+    </label>
+    <span class="divider">›</span>
+    <label>
+      <span>Period</span>
+      <select id="selPeriod" disabled><option value="">— Pick subject first —</option></select>
+    </label>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs" id="tabs" style="display:none">
+    <button data-tab="questions" class="active">
+      Questions <span class="count" id="tabQCount">0</span>
+    </button>
+    <button data-tab="passages">
+      Passages <span class="count" id="tabPCount">0</span>
+    </button>
+  </div>
+
+  <div id="content"></div>
 </main>
 
-<!-- ============ question modal ============ -->
+<!-- question modal -->
 <div class="modal-back hidden" id="modalEdit">
   <div class="modal">
     <h2 id="modalEditTitle">Add question</h2>
@@ -104,17 +448,19 @@
       </label>
 
       <label class="field">
-        <span>Passage (optional)</span>
+        <span>Attach to passage (optional)</span>
         <select id="qPassage">
           <option value="">— None —</option>
         </select>
-        <div class="hint">Attach this question to a reading passage.</div>
+        <div class="hint">Group this question under a shared reading passage.</div>
       </label>
 
-      <div style="font-weight:600;font-size:.88rem;margin-bottom:6px">Choices — select the correct one</div>
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:8px">
+        Choices <span style="color:var(--text-muted);font-weight:400">— pick the correct one</span>
+      </div>
       <div id="choiceRows"></div>
       <button type="button" class="ghost small" id="btnAddChoice">+ Add choice</button>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px">
         <button type="button" class="ghost" id="btnCancelEdit">Cancel</button>
         <button type="submit" id="btnSaveQuestion">Save</button>
       </div>
@@ -122,7 +468,7 @@
   </div>
 </div>
 
-<!-- ============ passage modal ============ -->
+<!-- passage modal -->
 <div class="modal-back hidden" id="modalPassage">
   <div class="modal">
     <h2 id="modalPassageTitle">Add passage</h2>
@@ -133,9 +479,9 @@
       </label>
       <label class="field">
         <span>Passage text</span>
-        <textarea id="pText" required maxlength="10000" style="min-height:200px" placeholder="Paste or type the passage here…"></textarea>
+        <textarea id="pText" required maxlength="10000" style="min-height:220px" placeholder="Paste or type the passage here…"></textarea>
       </label>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px">
         <button type="button" class="ghost" id="btnCancelPassage">Cancel</button>
         <button type="submit" id="btnSavePassage">Save</button>
       </div>
@@ -143,24 +489,25 @@
   </div>
 </div>
 
-<!-- ============ bulk modal ============ -->
+<!-- bulk modal -->
 <div class="modal-back hidden" id="modalBulk">
   <div class="modal">
     <h2>Bulk upload questions</h2>
-    <p style="color:var(--muted);font-size:.9rem;margin-top:0">
-      Paste questions below. Use <strong>tab</strong> or <strong>comma</strong> to separate columns.
+    <p style="color:var(--text-muted);font-size:.9rem;margin-top:0">
+      Paste rows below. Use <strong>tab</strong> or <strong>comma</strong> to separate columns.
       First row can be a header (optional). Last column is the correct answer.
     </p>
     <div class="bulk-help">question,choiceA,choiceB,choiceC,choiceD,correct
 What is 2+2?,3,4,5,6,B
 Capital of France?,Paris,London,Rome,Madrid,A</div>
-    <p style="color:var(--muted);font-size:.85rem">
-      <strong>Correct answer</strong> can be a letter (<code>A</code>–<code>F</code>),
-      a number (<code>1</code>–<code>6</code>), or the exact text. 2–6 choices.
+    <p style="color:var(--text-muted);font-size:.85rem">
+      Correct answer can be a letter (<code>A</code>–<code>F</code>),
+      a number (<code>1</code>–<code>6</code>), or the exact text. 2–6 choices per question.
     </p>
     <label class="field">
       <span>Paste here</span>
-      <textarea id="bulkText" style="min-height:180px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem"
+      <textarea id="bulkText"
+        style="min-height:200px;font-family:var(--font-mono);font-size:.85rem"
         placeholder="Paste questions here…"></textarea>
     </label>
     <div id="bulkErrors"></div>
@@ -200,7 +547,7 @@ const content = $('content');
 const tabsEl = $('tabs');
 
 /* ============================================================
-   LOAD SUBJECTS + PERIODS
+   SUBJECT + PERIOD
    ============================================================ */
 async function loadSubjectsList() {
   subjects = await listSubjects();
@@ -213,42 +560,71 @@ $('selSubject').addEventListener('change', () => {
   const sel = $('selPeriod');
   if (!s) {
     sel.disabled = true;
-    sel.innerHTML = '<option value="">— Select subject first —</option>';
+    sel.innerHTML = '<option value="">— Pick subject first —</option>';
     tabsEl.style.display = 'none';
-    renderEmpty();
+    renderWelcome();
     return;
   }
   const periods = (s.periods || []).slice().sort((a,b) => a.name.localeCompare(b.name));
   if (!periods.length) {
     sel.disabled = true;
-    sel.innerHTML = '<option value="">— No periods —</option>';
+    sel.innerHTML = '<option value="">— No periods yet —</option>';
     tabsEl.style.display = 'none';
-    renderEmpty('This subject has no periods yet. Add one in Subjects.');
+    renderEmptyHero(
+      '📚',
+      'No periods in this subject',
+      'Add a period first — for example "1st Quarter" or "Midterms" — before adding questions.',
+      [{ label: 'Go to Subjects', href: 'subjects.html' }]
+    );
     return;
   }
   sel.disabled = false;
   sel.innerHTML = '<option value="">— Select period —</option>' +
     periods.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
   tabsEl.style.display = 'none';
-  renderEmpty('Select a period to see its questions.');
+  renderWelcome();
 });
 
 $('selPeriod').addEventListener('change', async () => {
   if (!$('selPeriod').value) {
     tabsEl.style.display = 'none';
-    renderEmpty('Select a period to see its questions.');
+    renderWelcome();
     return;
   }
   tabsEl.style.display = 'flex';
   await loadAll();
 });
 
-function renderEmpty(msg) {
-  content.innerHTML = `<div class="card empty-period">${escapeHtml(msg || 'Select a subject and period to begin.')}</div>`;
+/* ============================================================
+   EMPTY STATES
+   ============================================================ */
+function renderWelcome() {
+  content.innerHTML = `
+    <div class="empty-hero">
+      <div class="icon">📝</div>
+      <h2>Pick a subject and period</h2>
+      <p>Choose a subject and period above to see its question pool. Questions you add will be available when creating quizzes.</p>
+    </div>`;
 }
 
+function renderEmptyHero(icon, title, body, actions = []) {
+  const actionsHtml = actions.map(a =>
+    `<a class="btn ghost" href="${a.href}">${escapeHtml(a.label)}</a>`
+  ).join('');
+  content.innerHTML = `
+    <div class="empty-hero">
+      <div class="icon">${icon}</div>
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(body)}</p>
+      ${actionsHtml ? `<div class="actions">${actionsHtml}</div>` : ''}
+    </div>`;
+}
+
+/* ============================================================
+   LOAD
+   ============================================================ */
 async function loadAll() {
-  content.innerHTML = '<div class="card empty-period">Loading…</div>';
+  content.innerHTML = '<div class="empty-hero"><div class="icon">⏳</div><p>Loading…</p></div>';
   const periodId = $('selPeriod').value;
   try {
     const [q, p] = await Promise.all([
@@ -257,6 +633,8 @@ async function loadAll() {
     ]);
     questions = q;
     passages = p;
+    $('tabQCount').textContent = questions.length;
+    $('tabPCount').textContent = passages.length;
     if (activeTab === 'questions') renderQuestions();
     else renderPassages();
   } catch (err) {
@@ -280,25 +658,37 @@ tabsEl.addEventListener('click', (e) => {
    QUESTIONS TAB
    ============================================================ */
 function renderQuestions() {
-  const periodId = $('selPeriod').value;
+  if (!questions.length) {
+    content.innerHTML = `
+      <div class="empty-hero">
+        <div class="icon">✨</div>
+        <h2>No questions yet</h2>
+        <p>Add your first question, or paste a batch using bulk upload.</p>
+        <div class="actions">
+          <button id="btnEmptyAdd">+ Add question</button>
+          <button class="ghost" id="btnEmptyBulk">Bulk upload</button>
+        </div>
+      </div>`;
+    $('btnEmptyAdd').addEventListener('click', () => openEdit(null));
+    $('btnEmptyBulk').addEventListener('click', openBulk);
+    return;
+  }
+
   content.innerHTML = `
-    <div class="card">
-      <div class="q-toolbar">
-        <button id="btnNewQ">+ Add question</button>
-        <button class="ghost" id="btnBulk">Bulk upload</button>
-        <button class="ghost" id="btnDeleteAll" ${questions.length ? '' : 'disabled'}>Delete all questions</button>
-        <span style="margin-left:auto;color:var(--muted);font-size:.9rem">
-          ${questions.length} question${questions.length === 1 ? '' : 's'}
-        </span>
-      </div>
-      ${questions.length
-        ? questions.map(renderQ).join('')
-        : '<div class="empty-period">No questions yet. Click "Add question" or "Bulk upload" to start.</div>'}
+    <div class="sticky-toolbar">
+      <button id="btnNewQ">+ Add question</button>
+      <button class="ghost" id="btnBulk">Bulk upload</button>
+      <div class="spacer"></div>
+      <button class="ghost small" id="btnDeleteAll">Delete all</button>
+    </div>
+    <div class="q-grid">
+      ${questions.map(renderQ).join('')}
     </div>`;
 
   $('btnNewQ').addEventListener('click', () => openEdit(null));
   $('btnBulk').addEventListener('click', openBulk);
   $('btnDeleteAll').addEventListener('click', async () => {
+    const periodId = $('selPeriod').value;
     if (!confirm(`Delete ALL ${questions.length} questions in this period? This cannot be undone.`)) return;
     try { await deletePeriodQuestions(periodId); toast('All questions deleted', 'success'); loadAll(); }
     catch (err) { toast(err.message, 'error'); }
@@ -313,22 +703,31 @@ function renderQuestions() {
     }));
 }
 
-function renderQ(q) {
+function renderQ(q, idx) {
   const choices = (q.choices || []).slice().sort((a,b) => a.position - b.position);
+  const letters = ['A','B','C','D','E','F','G','H'];
   const passageTag = q.passages
     ? `<span class="q-tag">📄 ${escapeHtml(q.passages.title || 'Passage')}</span>`
     : '';
+  const served = q.served_count || 0;
+
   return `
-    <div class="q-item">
+    <div class="q-card">
+      <div class="q-card-head">
+        <div class="left">
+          ${passageTag}
+        </div>
+        <span class="q-served">served ${served}×</span>
+      </div>
       <div class="q-text">${escapeHtml(q.text)}</div>
       <ul class="q-choices">
-        ${choices.map(c => `<li class="${c.is_correct ? 'correct' : ''}">${escapeHtml(c.text)}${c.is_correct ? ' ✓' : ''}</li>`).join('')}
+        ${choices.map((c, i) => `
+          <li class="${c.is_correct ? 'correct' : ''}">
+            <span class="letter">${letters[i]}</span>
+            <span>${escapeHtml(c.text)}</span>
+          </li>`).join('')}
       </ul>
-      <div class="q-meta">
-        ${passageTag}
-        <span>Served ${q.served_count || 0} time${(q.served_count || 0) === 1 ? '' : 's'}</span>
-      </div>
-      <div class="q-actions">
+      <div class="q-card-foot">
         <button class="ghost small" data-edit="${q.id}">Edit</button>
         <button class="danger small" data-del="${q.id}">Delete</button>
       </div>
@@ -339,24 +738,34 @@ function renderQ(q) {
    PASSAGES TAB
    ============================================================ */
 function renderPassages() {
-  const periodId = $('selPeriod').value;
+  if (!passages.length) {
+    content.innerHTML = `
+      <div class="empty-hero">
+        <div class="icon">📄</div>
+        <h2>No passages yet</h2>
+        <p>Passages let you attach a shared reading text to multiple questions — perfect for comprehension exercises.</p>
+        <div class="actions">
+          <button id="btnEmptyP">+ Add passage</button>
+        </div>
+      </div>`;
+    $('btnEmptyP').addEventListener('click', () => openPassage(null));
+    return;
+  }
+
   content.innerHTML = `
-    <div class="card">
-      <div class="q-toolbar">
-        <button id="btnNewP">+ Add passage</button>
-        <button class="ghost" id="btnDeleteAllP" ${passages.length ? '' : 'disabled'}>Delete all passages</button>
-        <span style="margin-left:auto;color:var(--muted);font-size:.9rem">
-          ${passages.length} passage${passages.length === 1 ? '' : 's'}
-        </span>
-      </div>
-      ${passages.length
-        ? passages.map(renderP).join('')
-        : '<div class="empty-period">No passages yet. Passages let you attach a shared reading text to multiple questions.</div>'}
+    <div class="sticky-toolbar">
+      <button id="btnNewP">+ Add passage</button>
+      <div class="spacer"></div>
+      <button class="ghost small" id="btnDeleteAllP">Delete all</button>
+    </div>
+    <div class="q-grid">
+      ${passages.map(renderP).join('')}
     </div>`;
 
   $('btnNewP').addEventListener('click', () => openPassage(null));
   $('btnDeleteAllP').addEventListener('click', async () => {
-    if (!confirm(`Delete ALL ${passages.length} passages in this period? Questions attached to them will become standalone.'`)) return;
+    const periodId = $('selPeriod').value;
+    if (!confirm(`Delete ALL ${passages.length} passages? Questions attached to them will become standalone.`)) return;
     try { await deletePeriodPassages(periodId); toast('All passages deleted', 'success'); loadAll(); }
     catch (err) { toast(err.message, 'error'); }
   });
@@ -364,7 +773,7 @@ function renderPassages() {
     b.addEventListener('click', () => openPassage(b.dataset.editP)));
   content.querySelectorAll('[data-del-p]').forEach(b =>
     b.addEventListener('click', async () => {
-      if (!confirm('Delete this passage? Questions attached to it will become standalone.')) return;
+      if (!confirm('Delete this passage? Attached questions will become standalone.')) return;
       try { await deletePassage(b.dataset.delP); toast('Passage deleted', 'success'); loadAll(); }
       catch (err) { toast(err.message, 'error'); }
     }));
@@ -372,17 +781,16 @@ function renderPassages() {
 
 function renderP(p) {
   const qCount = questions.filter(q => q.passage_id === p.id).length;
-  const preview = (p.text || '').slice(0, 180) + ((p.text || '').length > 180 ? '…' : '');
   return `
-    <div class="passage-item">
+    <div class="p-card">
       <div class="p-title">${escapeHtml(p.title || 'Untitled passage')}</div>
-      <div class="p-text">${escapeHtml(preview)}</div>
-      <div class="q-meta" style="margin-top:8px">
-        <span>${qCount} question${qCount === 1 ? '' : 's'} attached</span>
-      </div>
-      <div class="p-actions">
-        <button class="ghost small" data-edit-p="${p.id}">Edit</button>
-        <button class="danger small" data-del-p="${p.id}">Delete</button>
+      <div class="p-preview">${escapeHtml(p.text || '')}</div>
+      <div class="p-card-foot">
+        <div class="p-meta"><b>${qCount}</b> question${qCount === 1 ? '' : 's'}</div>
+        <div style="display:flex;gap:6px">
+          <button class="ghost small" data-edit-p="${p.id}">Edit</button>
+          <button class="danger small" data-del-p="${p.id}">Delete</button>
+        </div>
       </div>
     </div>`;
 }
@@ -548,8 +956,10 @@ $('btnDoBulk').addEventListener('click', async () => {
   finally { btn.disabled = false; btn.textContent = 'Upload'; }
 });
 
-/* ---------- init ---------- */
-renderEmpty();
+/* ============================================================
+   BOOT
+   ============================================================ */
+renderWelcome();
 await loadSubjectsList();
 </script>
 </body>
