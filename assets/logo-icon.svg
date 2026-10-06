@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Quiz Platform Champ">
+  <defs>
+    <linearGradient id="champBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded square badge -->
+  <rect width="64" height="64" rx="14" fill="url(#champBg)"/>
+
+  <!-- left handle -->
+  <path d="M20 22c-8 0-9 9-3 11" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- right handle -->
+  <path d="M44 22c8 0 9 9 3 11" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- trophy cup -->
+  <path d="M20 15h24v15a12 12 0 0 1-24 0V15Z" fill="#ffffff"/>
+
+  <!-- stem -->
+  <rect x="29" y="42" width="6" height="5" fill="#ffffff"/>
+  <!-- base -->
+  <rect x="21" y="47" width="22" height="5" rx="1.5" fill="#ffffff"/>
+
+  <!-- checkmark cut out of the cup -->
+  <path d="M26 27l4 4 8-9" stroke="#2563eb" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
