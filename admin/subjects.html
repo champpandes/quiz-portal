@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subjects · Quiz Platform</title>
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<style>
+  .subject-card{background:#fff;border-radius:10px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+  .subject-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .subject-head h2{margin:0;font-size:1.1rem}
+  .period-list{list-style:none;padding:0;margin:0 0 12px}
+  .period-list li{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px;background:#f7f9fc;border-radius:8px;margin-bottom:6px;font-size:.95rem}
+  .inline-form{display:flex;gap:8px}
+  .inline-form input{flex:1}
+  .empty{color:var(--muted);font-size:.9rem;padding:6px 0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Quiz<span>Platform</span></div>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html" class="active">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html">Quizzes</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Subjects</h1>
+  <p style="color:var(--muted);margin-top:-6px">Organize your subjects and their quarters or periods.</p>
+
+  <div class="card">
+    <h2>Create a subject</h2>
+    <form id="formSubject" class="inline-form">
+      <input type="text" id="newSubjectName" placeholder="e.g. Math 7" required maxlength="80">
+      <button type="submit">Add subject</button>
+    </form>
+  </div>
+
+  <div id="subjectsList"></div>
+</main>
+
+<script type="module">
+import { requireAuth, signOut, getUser, escapeHtml, toast } from '../assets/supabase.js';
+import { listSubjects, createSubject, deleteSubject, createPeriod, deletePeriod } from '../assets/admin/subjects.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+const listEl = document.getElementById('subjectsList');
+
+async function refresh() {
+  listEl.innerHTML = '<div class="card"><p class="empty">Loading…</p></div>';
+  try { render(await listSubjects()); }
+  catch (err) { listEl.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`; }
+}
+
+function render(subjects) {
+  if (!subjects.length) {
+    listEl.innerHTML = '<div class="card"><p class="empty">No subjects yet. Create one above.</p></div>';
+    return;
+  }
+  listEl.innerHTML = subjects.map(s => {
+    const periods = (s.periods || []).slice().sort((a,b) => a.name.localeCompare(b.name));
+    return `
+      <div class="subject-card">
+        <div class="subject-head">
+          <h2>${escapeHtml(s.name)}</h2>
+          <button class="danger small" data-action="del-subject" data-id="${s.id}">Delete subject</button>
+        </div>
+        <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">Periods</div>
+        ${periods.length ? `
+          <ul class="period-list">
+            ${periods.map(p => `
+              <li>
+                <span>${escapeHtml(p.name)}</span>
+                <button class="ghost small" data-action="del-period" data-id="${p.id}">✕</button>
+              </li>
+            `).join('')}
+          </ul>
+        ` : '<p class="empty">No periods yet.</p>'}
+        <form class="inline-form" data-action="add-period" data-subject="${s.id}">
+          <input type="text" placeholder="Add a period (e.g. 1st Quarter)" maxlength="80" required>
+          <button type="submit" class="small">Add</button>
+        </form>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('formSubject').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('newSubjectName');
+  const name = input.value.trim();
+  if (!name) return;
+  try {
+    await createSubject(name);
+    input.value = '';
+    toast('Subject created', 'success');
+    refresh();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+listEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const { action, id } = btn.dataset;
+
+  if (action === 'del-subject') {
+    if (!confirm('Delete this subject? All its periods and questions will be deleted.')) return;
+    try { await deleteSubject(id); toast('Subject deleted', 'success'); refresh(); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+
+  if (action === 'del-period') {
+    if (!confirm('Delete this period? All its questions will be deleted.')) return;
+    try { await deletePeriod(id); toast('Period deleted', 'success'); refresh(); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+});
+
+listEl.addEventListener('submit', async (e) => {
+  const form = e.target.closest('form[data-action="add-period"]');
+  if (!form) return;
+  e.preventDefault();
+  const subjectId = form.dataset.subject;
+  const input = form.querySelector('input');
+  const name = input.value.trim();
+  if (!name) return;
+  try {
+    await createPeriod(subjectId, name);
+    input.value = '';
+    toast('Period added', 'success');
+    refresh();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+refresh();
+</script>
+</body>
+</html>
