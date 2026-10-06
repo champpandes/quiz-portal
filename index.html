@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<title>Quiz</title>
+<link rel="stylesheet" href="./assets/quiz.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ============ LOADING ============ -->
+  <section class="screen" id="screen-loading">
+    <div class="spinner"></div>
+    <p style="text-align:center;color:#64748b">Loading quiz…</p>
+  </section>
+
+  <!-- ============ ENTRY ============ -->
+  <section class="screen active" id="screen-entry">
+    <div class="entry-logo">Quiz<span>Platform</span></div>
+    <div class="entry-sub">Please enter your details to begin</div>
+
+    <div class="card">
+      <label class="field">
+        <span>Student number</span>
+        <input type="text" id="inStudentNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 2024-00123">
+      </label>
+      <label class="field">
+        <span>Full name</span>
+        <input type="text" id="inName" autocomplete="off" placeholder="e.g. Juan Dela Cruz">
+      </label>
+      <div id="entryErr" class="info-line" style="background:#fee2e2;color:#991b1b;display:none"></div>
+      <button class="block" id="btnStart">Start quiz</button>
+      <p class="muted" style="text-align:center;margin-top:14px;font-size:.82rem">
+        Leaving this page will be recorded. Three warnings are allowed before your quiz submits automatically.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="screen" id="screen-quiz">
+    <div class="card">
+      <div class="quiz-header">
+        <div>Quiz</div>
+        <div class="right" id="quizTitle"></div>
+      </div>
+      <div class="progress"><i id="progressFill"></i></div>
+      <div style="font-size:.85rem;color:#64748b;margin-bottom:16px" id="qCounter">Question 1 of 10</div>
+
+      <div class="q-text" id="questionText"></div>
+      <div class="choices" id="choices"></div>
+    </div>
+  </section>
+
+  <!-- ============ DONE ============ -->
+  <section class="screen" id="screen-done">
+    <div class="card">
+      <div class="done-icon" id="doneIcon">✅</div>
+      <div class="done-title" id="doneTitle">Submitted</div>
+      <p class="muted" style="text-align:center" id="doneSub">Your answers have been sent to your teacher.</p>
+
+      <div class="score-big" id="doneScore">—</div>
+      <div class="score-sub" id="donePercent">—</div>
+      <div class="info-line" id="doneTime">Time used: —</div>
+    </div>
+  </section>
+
+  <!-- ============ ERROR ============ -->
+  <section class="screen" id="screen-error">
+    <div class="card err-card">
+      <div class="err-icon" id="errIcon">⚠️</div>
+      <p id="errMsg" style="color:#64748b"></p>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ BOTTOM BAR ============ -->
+<div class="bottom-bar hidden" id="bottomBar">
+  <div class="info">
+    <div class="timer" id="timer">0:00</div>
+    <div class="warn hidden" id="warnBadge"></div>
+  </div>
+  <button id="btnNext" disabled>Next</button>
+</div>
+
+<!-- ============ WARNING MODAL ============ -->
+<div class="modal-back hidden" id="modalWarning">
+  <div class="modal">
+    <div class="icon">⚠️</div>
+    <h2 id="warnCount">Warning 1 of 3</h2>
+    <p id="warnBody"></p>
+    <button class="block" id="btnWarnOk">I understand</button>
+  </div>
+</div>
+
+<script type="module">
+  // inject quiz code before loading the engine
+  const params = new URLSearchParams(location.search);
+  window.__QUIZ_CODE__ = params.get('q') || '';
+
+  // if no code at all, show an error immediately
+  if (!window.__QUIZ_CODE__) {
+    document.getElementById('screen-entry').classList.remove('active');
+    document.getElementById('errIcon').textContent = '🔍';
+    document.getElementById('errMsg').textContent =
+      'No quiz code found. Please use the link your teacher shared.';
+    document.getElementById('screen-error').classList.add('active');
+  } else {
+    // boot the engine
+    await import('./assets/quiz.js');
+  }
+</script>
+
+</body>
+</html>
