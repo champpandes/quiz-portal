@@ -90,10 +90,6 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">
-    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-    <span>Quiz Platform <strong>Champ</strong></span>
-  </div>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="subjects.html">Subjects</a>
@@ -123,6 +119,7 @@ import { requireAuth, signOut, getUser, escapeHtml, fmtDate, toast } from '../as
 import {
   getQuiz, listAttempts, getAttemptDetail, setKept, setFlagged, deleteAttempt,
   flattenAttempts, downloadCSV, downloadXLSX,
+  copyAsTSV, flattenDetailedAnswers,
 } from '../assets/admin/results.js';
 
 const session = await requireAuth('index.html');
@@ -232,8 +229,10 @@ function renderToolbar() {
         <input type="checkbox" id="fltFlagged" ${filterFlagged ? 'checked' : ''}> Flagged only
       </label>
       <div class="spacer"></div>
+      <button class="ghost small" id="btnCopySheets" title="Paste directly into a Google Sheet with Ctrl+V">📋 Copy for Sheets</button>
       <button class="ghost small" id="btnExportCSV">Export CSV</button>
       <button class="ghost small" id="btnExportXLSX">Export Excel</button>
+      <button class="ghost small" id="btnExportDetailed">Export detailed</button>
       <button class="ghost small" id="btnRefresh">Refresh</button>
     </div>`;
 
@@ -241,15 +240,60 @@ function renderToolbar() {
   $('fltFlagged').addEventListener('change', e => { filterFlagged = e.target.checked; renderTable(); });
   $('btnRefresh').addEventListener('click', load);
 
+  /* ---------- Copy for Sheets ---------- */
+  $('btnCopySheets').addEventListener('click', async () => {
+    const rows = flattenAttempts(getFilteredSorted());
+    if (!rows.length) { toast('No rows to copy', 'error'); return; }
+    try {
+      await copyAsTSV(rows);
+      toast('Copied! Open Google Sheets and press Ctrl+V', 'success', 5000);
+    } catch (err) { toast(err.message, 'error'); }
+  });
+
+  /* ---------- CSV ---------- */
   $('btnExportCSV').addEventListener('click', () => {
     const rows = flattenAttempts(getFilteredSorted());
     const safeName = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
     downloadCSV(rows, `${safeName}-results-${dateStamp()}.csv`);
   });
+
+  /* ---------- XLSX ---------- */
   $('btnExportXLSX').addEventListener('click', () => {
     const rows = flattenAttempts(getFilteredSorted());
     const safeName = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
     downloadXLSX(rows, `${safeName}-results-${dateStamp()}.xlsx`, 'Results');
+  });
+
+  /* ---------- Detailed (one row per question) ---------- */
+  $('btnExportDetailed').addEventListener('click', async () => {
+    const rows = getFilteredSorted();
+    if (!rows.length) { toast('No attempts to export', 'error'); return; }
+
+    const btn = $('btnExportDetailed');
+    btn.disabled = true;
+    btn.textContent = 'Building…';
+
+    try {
+      const allRows = [];
+      for (const attempt of rows) {
+        try {
+          const { attempt: full, answers } = await getAttemptDetail(attempt.id);
+          const detailed = flattenDetailedAnswers(full, answers);
+          allRows.push(...detailed);
+        } catch (_) { /* skip an attempt if it fails */ }
+      }
+
+      if (!allRows.length) { toast('Nothing to export', 'error'); return; }
+
+      const safeName = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      downloadCSV(allRows, `${safeName}-detailed-${dateStamp()}.csv`);
+      toast(`Exported ${allRows.length} rows`, 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Export detailed';
+    }
   });
 }
 
