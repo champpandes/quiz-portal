@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teacher Login</title>
+<link rel="stylesheet" href="../assets/admin/admin.css">
+</head>
+<body>
+
+<div class="login-wrap">
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="logo">Quiz<span>Platform</span></div>
+    <div class="sub">Teacher sign in</div>
+
+    <div id="msg" class="msg error hidden"></div>
+
+    <label class="field">
+      <span>Email</span>
+      <input type="email" id="email" name="email"
+             autocomplete="username" required
+             placeholder="you@example.com">
+    </label>
+
+    <label class="field">
+      <span>Password</span>
+      <input type="password" id="password" name="password"
+             autocomplete="current-password" required
+             placeholder="Your password">
+    </label>
+
+    <button type="submit" id="btnLogin">Sign in</button>
+
+    <div class="login-footer">
+      Accounts are created by the admin.<br>
+      Forgot your password? Ask the admin to reset it.
+    </div>
+  </form>
+</div>
+
+<script type="module">
+import { signIn, getSession } from '../assets/supabase.js';
+
+const form   = document.getElementById('loginForm');
+const msg    = document.getElementById('msg');
+const btn    = document.getElementById('btnLogin');
+const email  = document.getElementById('email');
+const pw     = document.getElementById('password');
+
+/* ---------- if already signed in, skip the login page ---------- */
+(async () => {
+  const session = await getSession();
+  if (session) location.replace('dashboard.html');
+})();
+
+/* ---------- error display ---------- */
+function showError(text) {
+  msg.textContent = text;
+  msg.classList.remove('hidden', 'success');
+  msg.classList.add('error');
+}
+function hideError() {
+  msg.classList.add('hidden');
+}
+
+/* ---------- friendly messages for common Supabase errors ---------- */
+function friendlyError(err) {
+  const m = (err?.message || '').toLowerCase();
+  if (m.includes('invalid login'))       return 'Wrong email or password.';
+  if (m.includes('email not confirmed')) return 'This account has not been confirmed. Ask the admin.';
+  if (m.includes('rate limit') || m.includes('too many'))
+                                          return 'Too many attempts. Please wait a minute and try again.';
+  if (m.includes('failed to fetch') || m.includes('network'))
+                                          return 'Cannot reach the server. Check your internet connection.';
+  return err?.message || 'Sign in failed. Please try again.';
+}
+
+/* ---------- submit ---------- */
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError();
+
+  const e1 = email.value.trim();
+  const p1 = pw.value;
+  if (!e1 || !p1) { showError('Enter your email and password.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    await signIn(e1, p1);
+    location.replace('dashboard.html');
+  } catch (err) {
+    showError(friendlyError(err));
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+    pw.select();
+  }
+});
+</script>
+</body>
+</html>
