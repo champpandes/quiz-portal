@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytics · Quiz Platform Champ</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<style>
+  .head-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .head-card h1 { margin: 0 0 4px; }
+  .head-meta { color: var(--muted); font-size: .9rem; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 16px 0 20px; }
+  .tile-stat { background: #fff; border-radius: 10px; padding: 14px; box-shadow: var(--shadow); }
+  .tile-stat .lbl { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .tile-stat .num { font-size: 1.6rem; font-weight: 800; margin-top: 2px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .toolbar .spacer { flex: 1; }
+
+  .q-card { background: #fff; border-radius: 12px; box-shadow: var(--shadow); padding: 18px 20px; margin-bottom: 12px; }
+  .q-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .q-num { font-size: .78rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: .72rem; font-weight: 700;
+           text-transform: uppercase; letter-spacing: .03em; margin-left: auto; }
+  .badge.easy     { background: #dcfce7; color: #166534; }
+  .badge.moderate { background: #fef3c7; color: #92400e; }
+  .badge.hard     { background: #fee2e2; color: #991b1b; }
+
+  .q-text { font-size: 1rem; font-weight: 600; line-height: 1.45; margin-bottom: 12px; color: var(--text); }
+
+  .q-stats { display: flex; flex-wrap: wrap; gap: 16px; font-size: .85rem; color: var(--muted); margin-bottom: 14px; }
+  .q-stats b { color: var(--text); font-weight: 700; }
+
+  .dist { display: flex; flex-direction: column; gap: 8px; }
+  .dist-row { display: flex; flex-direction: column; gap: 4px; }
+  .dist-label {
+    display: flex; align-items: center; gap: 8px; font-size: .88rem;
+  }
+  .dist-label .letter {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #eef2f7; color: var(--muted);
+    font-size: .75rem; font-weight: 700; flex: 0 0 22px;
+  }
+  .dist-row.correct .dist-label .letter { background: #16a34a; color: #fff; }
+  .dist-row.correct .dist-label .txt     { color: #166534; font-weight: 600; }
+  .dist-label .txt { flex: 1; }
+  .dist-label .counts { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .dist-bar { height: 8px; background: #eef2f7; border-radius: 99px; overflow: hidden; }
+  .dist-bar > i { display: block; height: 100%; background: #cbd5e1; transition: width .25s; }
+  .dist-row.correct .dist-bar > i { background: #16a34a; }
+
+  .empty { background: #fff; border-radius: 10px; padding: 50px 20px; text-align: center; color: var(--muted); box-shadow: var(--shadow); }
+
+  @media (max-width: 640px) {
+    .q-card { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
+    <span>Quiz Platform <strong>Champ</strong></span>
+  </div>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html" class="active">Quizzes</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <div id="head"></div>
+  <div id="stats"></div>
+  <div id="toolbar"></div>
+  <div id="body"></div>
+</main>
+
+<script type="module">
+import { requireAuth, signOut, getUser, escapeHtml, toast } from '../assets/supabase.js';
+import { getQuiz } from '../assets/admin/results.js';
+import { getQuestionAnalytics } from '../assets/admin/analytics.js';
+import { downloadCSV, downloadXLSX } from '../assets/admin/results.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const QUIZ_ID = params.get('id');
+
+if (!QUIZ_ID) {
+  $('head').innerHTML = '<div class="card"><p>Missing quiz ID. <a href="quizzes.html">Go back</a>.</p></div>';
+  throw new Error('no quiz id');
+}
+
+let quiz = null;
+let questions = [];
+let summary = null;
+
+async function load() {
+  $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
+  try {
+    quiz = await getQuiz(QUIZ_ID);
+    const data = await getQuestionAnalytics(QUIZ_ID);
+    questions = data.questions;
+    summary = data.summary;
+    renderHead();
+    renderStats();
+    renderToolbar();
+    renderBody();
+  } catch (err) {
+    $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderHead() {
+  const subjectName = quiz.subjects?.name || '—';
+  const periodName  = quiz.periods?.name  || '—';
+
+  $('head').innerHTML = `
+    <div class="card head-card">
+      <div>
+        <h1>${escapeHtml(quiz.title)}</h1>
+        <div class="head-meta">
+          ${escapeHtml(subjectName)} · ${escapeHtml(periodName)} ·
+          ${quiz.num_questions} questions per student ·
+          <span style="font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtml(quiz.code)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a class="btn ghost small" href="quiz-view.html?id=${quiz.id}">← Results table</a>
+        <a class="btn ghost small" href="quizzes.html">All quizzes</a>
+      </div>
+    </div>`;
+}
+
+function renderStats() {
+  const hardCount = questions.filter(q => q.pct < 50).length;
+  const easyCount = questions.filter(q => q.pct >= 80).length;
+
+  $('stats').innerHTML = `
+    <div class="tiles">
+      <div class="tile-stat"><div class="lbl">Attempts</div><div class="num">${summary.attempts}</div></div>
+      <div class="tile-stat"><div class="lbl">Questions seen</div><div class="num">${summary.questionsSeen}</div></div>
+      <div class="tile-stat"><div class="lbl">Class average</div><div class="num">${summary.avgScorePercent}%</div></div>
+      <div class="tile-stat"><div class="lbl">Hard questions</div><div class="num">${hardCount}</div></div>
+      <div class="tile-stat"><div class="lbl">Easy questions</div><div class="num">${easyCount}</div></div>
+    </div>`;
+}
+
+function renderToolbar() {
+  if (!questions.length) return;
+  $('toolbar').innerHTML = `
+    <div class="toolbar">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted)">
+        <input type="checkbox" id="fltHard"> Show only hard questions (&lt; 50% correct)
+      </label>
+      <div class="spacer"></div>
+      <button class="ghost small" id="btnExportCSV">Export CSV</button>
+      <button class="ghost small" id="btnExportXLSX">Export Excel</button>
+      <button class="ghost small" id="btnRefresh">Refresh</button>
+    </div>`;
+
+  $('fltHard').addEventListener('change', renderBody);
+  $('btnRefresh').addEventListener('click', load);
+
+  $('btnExportCSV').addEventListener('click', () => {
+    downloadCSV(flattenForExport(), `analytics-${quiz.code}-${stamp()}.csv`);
+  });
+  $('btnExportXLSX').addEventListener('click', () => {
+    downloadXLSX(flattenForExport(), `analytics-${quiz.code}-${stamp()}.xlsx`, 'Analytics');
+  });
+}
+
+function stamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function flattenForExport() {
+  const rows = [];
+  for (const q of questions) {
+    for (const c of q.choices) {
+      const count = q.choiceCounts[c.id] || 0;
+      rows.push({
+        question: q.text,
+        correct_answer: q.choices.find(x => x.is_correct)?.text || '',
+        correct_pct: q.pct,
+        answered: q.total,
+        avg_seconds: q.avgSeconds,
+        choice: c.text,
+        is_correct: c.is_correct ? 'yes' : '',
+        picked_count: count,
+        picked_pct: q.total ? Math.round((count / q.total) * 100) : 0,
+      });
+    }
+  }
+  return rows;
+}
+
+function renderBody() {
+  if (!questions.length) {
+    $('body').innerHTML = `
+      <div class="empty">
+        <p style="font-size:1.1rem;margin:0 0 6px">No analytics yet</p>
+        <p style="margin:0">Analytics appear once students submit attempts on this quiz.</p>
+      </div>`;
+    return;
+  }
+
+  const onlyHard = $('fltHard')?.checked;
+  const list = onlyHard ? questions.filter(q => q.pct < 50) : questions;
+
+  if (!list.length) {
+    $('body').innerHTML = '<div class="empty">No questions match the filter.</div>';
+    return;
+  }
+
+  $('body').innerHTML = list.map(renderQuestionCard).join('');
+}
+
+function renderQuestionCard(q, idx) {
+  const letters = ['A','B','C','D','E','F','G','H'];
+  const diff = q.pct >= 80 ? 'easy' : (q.pct >= 50 ? 'moderate' : 'hard');
+  const diffLabel = diff === 'easy' ? 'Easy' : (diff === 'moderate' ? 'Moderate' : 'Hard');
+
+  const choicesHtml = q.choices.map((c, i) => {
+    const count = q.choiceCounts[c.id] || 0;
+    const pct = q.total ? Math.round((count / q.total) * 100) : 0;
+    const cls = c.is_correct ? 'dist-row correct' : 'dist-row';
+    return `
+      <div class="${cls}">
+        <div class="dist-label">
+          <span class="letter">${letters[i] || '·'}</span>
+          <span class="txt">${escapeHtml(c.text)}${c.is_correct ? ' ✓' : ''}</span>
+          <span class="counts">${count} · ${pct}%</span>
+        </div>
+        <div class="dist-bar"><i style="width:${pct}%"></i></div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="q-card">
+      <div class="q-head">
+        <span class="q-num">Question ${idx + 1}</span>
+        <span class="badge ${diff}">${diffLabel} · ${q.pct}% correct</span>
+      </div>
+      <div class="q-text">${escapeHtml(q.text)}</div>
+      <div class="q-stats">
+        <span><b>${q.total}</b> answered</span>
+        <span><b>${q.correct}</b> got it right</span>
+        <span><b>${q.avgSeconds}s</b> average time</span>
+      </div>
+      <div class="dist">${choicesHtml}</div>
+    </div>`;
+}
+
+load();
+</script>
+</body>
+</html>
