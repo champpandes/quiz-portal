@@ -34,8 +34,7 @@
 
       <label class="field">
         <span>Full name</span>
-        <input type="text" id="inName" autocomplete="off"
-               placeholder="Dela Cruz, Juan P. Jr.">
+        <input type="text" id="inName" autocomplete="off" placeholder="Dela Cruz, Juan P. Jr.">
       </label>
       <p class="muted" style="margin:-8px 0 14px;font-size:.82rem">
         Format: <strong>Last Name, First Name M.I. Suffix</strong>
@@ -61,6 +60,11 @@
       <div class="progress"><i id="progressFill"></i></div>
       <div style="font-size:.85rem;color:#64748b;margin-bottom:16px" id="qCounter">Question 1 of 10</div>
 
+      <div id="passageBox" class="passage-box" style="display:none">
+        <div id="passageTitle" class="p-title"></div>
+        <div id="passageText" class="p-text"></div>
+      </div>
+
       <div class="q-text" id="questionText"></div>
       <div class="choices" id="choices"></div>
     </div>
@@ -72,7 +76,6 @@
       <div class="done-icon" id="doneIcon">✅</div>
       <div class="done-title" id="doneTitle">Submitted</div>
       <p class="muted" style="text-align:center" id="doneSub">Your answers have been sent to your teacher.</p>
-
       <div class="score-big" id="doneScore">—</div>
       <div class="score-sub" id="donePercent">—</div>
       <div class="info-line" id="doneTime">Time used: —</div>
@@ -129,13 +132,8 @@
   const inNum    = document.getElementById('inStudentNo');
   const btnStart = document.getElementById('btnStart');
 
-  function showEntryError(msg) {
-    errEl.textContent = msg;
-    errEl.style.display = 'block';
-  }
-  function hideEntryError() {
-    errEl.style.display = 'none';
-  }
+  function showEntryError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  function hideEntryError() { errEl.style.display = 'none'; }
 
   inName.addEventListener('input', hideEntryError);
   inNum.addEventListener('input', hideEntryError);

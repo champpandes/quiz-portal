@@ -1,5 +1,5 @@
 /* ============================================================
-   QUESTIONS + CHOICES + BULK IMPORT
+   QUESTIONS + CHOICES + PASSAGES + BULK IMPORT
    ============================================================ */
 
 import { supabase } from '../supabase.js';
@@ -17,7 +17,21 @@ export async function listSubjects() {
 export async function listQuestions(periodId) {
   const { data, error } = await supabase
     .from('questions')
-    .select('id, text, created_at, served_count, choices(id, text, is_correct, position)')
+    .select(`
+      id, text, passage_id, created_at, served_count,
+      choices(id, text, is_correct, position),
+      passages(id, title, text)
+    `)
+    .eq('period_id', periodId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listPassages(periodId) {
+  const { data, error } = await supabase
+    .from('passages')
+    .select('id, title, text, created_at')
     .eq('period_id', periodId)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -25,10 +39,10 @@ export async function listQuestions(periodId) {
 }
 
 /* ---------- writes ---------- */
-export async function createQuestion(periodId, text, choices) {
+export async function createQuestion(periodId, text, choices, passageId = null) {
   const { data: q, error: qErr } = await supabase
     .from('questions')
-    .insert({ period_id: periodId, text })
+    .insert({ period_id: periodId, text, passage_id: passageId || null })
     .select()
     .single();
   if (qErr) throw qErr;
@@ -47,10 +61,10 @@ export async function createQuestion(periodId, text, choices) {
   return q;
 }
 
-export async function updateQuestion(questionId, text, choices) {
+export async function updateQuestion(questionId, text, choices, passageId = null) {
   const { error: qErr } = await supabase
     .from('questions')
-    .update({ text })
+    .update({ text, passage_id: passageId || null })
     .eq('id', questionId);
   if (qErr) throw qErr;
 
@@ -77,6 +91,34 @@ export async function deleteQuestion(id) {
 
 export async function deletePeriodQuestions(periodId) {
   const { error } = await supabase.from('questions').delete().eq('period_id', periodId);
+  if (error) throw error;
+}
+
+export async function createPassage(periodId, title, text) {
+  const { data, error } = await supabase
+    .from('passages')
+    .insert({ period_id: periodId, title: title || null, text })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePassage(id, title, text) {
+  const { error } = await supabase
+    .from('passages')
+    .update({ title: title || null, text })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deletePassage(id) {
+  const { error } = await supabase.from('passages').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function deletePeriodPassages(periodId) {
+  const { error } = await supabase.from('passages').delete().eq('period_id', periodId);
   if (error) throw error;
 }
 

@@ -11,7 +11,6 @@ import {
   SESSION_KEY, CLOSE_FLAG_KEY,
 } from './config.js';
 
-/* ---------- module state ---------- */
 let state = null;
 let elapsedTimer = null;
 let questionShownAt = 0;
@@ -19,7 +18,6 @@ let lastWarningAt = 0;
 let modalOpen = false;
 let submitting = false;
 
-/* ---------- DOM helpers ---------- */
 const $ = id => document.getElementById(id);
 
 function showScreen(name) {
@@ -36,13 +34,9 @@ function showError(msg, icon = '⚠️') {
   showScreen('error');
 }
 
-/* ============================================================
-   LOCAL STORAGE — close flag
-   ============================================================ */
+/* ---------- close flag ---------- */
 function setCloseFlag() {
-  try {
-    localStorage.setItem(CLOSE_FLAG_KEY, JSON.stringify({ at: Date.now() }));
-  } catch (_) {}
+  try { localStorage.setItem(CLOSE_FLAG_KEY, JSON.stringify({ at: Date.now() })); } catch (_) {}
 }
 function consumeCloseFlag() {
   try {
@@ -56,31 +50,23 @@ function consumeCloseFlag() {
   } catch (_) { return null; }
 }
 
-/* ============================================================
-   PERSISTENCE
-   ============================================================ */
+/* ---------- persistence ---------- */
 function saveLocal() {
   if (!state) return;
   try {
-    const light = {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
       attemptId: state.attemptId,
-      quizTitle: state.quizTitle,
-      showScore: state.showScore,
       current: state.current,
       warningCount: state.warningCount,
       startedAt: state.startedAt,
-      answers: state.questions.map(q => ({ aa_id: q.aa_id, cid: q.selectedChoiceId })),
-    };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(light));
+    }));
   } catch (_) {}
 }
 function clearLocal() {
   try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
 }
 
-/* ============================================================
-   START
-   ============================================================ */
+/* ---------- start ---------- */
 async function beginQuiz(code, studentNumber, studentName) {
   showScreen('loading');
   try {
@@ -97,6 +83,7 @@ async function beginQuiz(code, studentNumber, studentName) {
       questions:        (data.questions || []).map(q => ({
         aa_id:             q.aa_id,
         text:              q.text,
+        passage:           q.passage || null,
         choices:           q.choices || [],
         selectedChoiceId:  q.selected_choice_id || null,
         secondsSpent:      q.seconds_spent || 0,
@@ -115,9 +102,7 @@ async function beginQuiz(code, studentNumber, studentName) {
       try {
         const cnt = await logEvent(state.attemptId, 'tab_closed');
         state.warningCount = cnt;
-      } catch (_) {
-        state.warningCount = 1;
-      }
+      } catch (_) { state.warningCount = 1; }
     }
 
     startElapsedTimer();
@@ -135,9 +120,7 @@ async function beginQuiz(code, studentNumber, studentName) {
   }
 }
 
-/* ============================================================
-   TIMER (elapsed, counts up)
-   ============================================================ */
+/* ---------- timer ---------- */
 function startElapsedTimer() {
   clearInterval(elapsedTimer);
   updateTimerDisplay();
@@ -145,13 +128,10 @@ function startElapsedTimer() {
 }
 function updateTimerDisplay() {
   if (!state) return;
-  const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
-  $('timer').textContent = fmtTime(elapsed);
+  $('timer').textContent = fmtTime(Math.floor((Date.now() - state.startedAt) / 1000));
 }
 
-/* ============================================================
-   RENDER
-   ============================================================ */
+/* ---------- render ---------- */
 function renderQuestion() {
   const i = state.current;
   const q = state.questions[i];
@@ -159,6 +139,17 @@ function renderQuestion() {
 
   $('qCounter').textContent = `Question ${i + 1} of ${total}`;
   $('progressFill').style.width = ((i) / total * 100) + '%';
+
+  // passage (if any)
+  const pBox = $('passageBox');
+  if (q.passage) {
+    $('passageTitle').textContent = q.passage.title || '';
+    $('passageTitle').style.display = q.passage.title ? 'block' : 'none';
+    $('passageText').textContent = q.passage.text || '';
+    pBox.style.display = 'block';
+  } else {
+    pBox.style.display = 'none';
+  }
 
   $('questionText').textContent = q.text;
 
@@ -181,7 +172,6 @@ function renderQuestion() {
   $('btnNext').disabled = !q.selectedChoiceId;
 
   updateWarningUI();
-
   questionShownAt = Date.now();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -197,9 +187,7 @@ function updateWarningUI() {
   }
 }
 
-/* ============================================================
-   ANSWER SELECTION
-   ============================================================ */
+/* ---------- answer ---------- */
 async function pickChoice(choiceId) {
   const q = state.questions[state.current];
   if (q.selectedChoiceId === choiceId) return;
@@ -212,22 +200,15 @@ async function pickChoice(choiceId) {
   saveLocal();
 
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
-  try {
-    await saveAnswer(state.attemptId, q.aa_id, choiceId, sec);
-  } catch (_) {}
+  try { await saveAnswer(state.attemptId, q.aa_id, choiceId, sec); } catch (_) {}
 }
 
-/* ============================================================
-   NEXT / SUBMIT
-   ============================================================ */
 async function handleNext() {
   const q = state.questions[state.current];
   if (!q.selectedChoiceId) return;
 
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
-  try {
-    await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec);
-  } catch (_) {}
+  try { await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec); } catch (_) {}
 
   if (state.current < state.questions.length - 1) {
     state.current++;
@@ -238,9 +219,7 @@ async function handleNext() {
   }
 }
 
-/* ============================================================
-   SUBMIT
-   ============================================================ */
+/* ---------- submit ---------- */
 async function doSubmit(forced) {
   if (submitting) return;
   submitting = true;
@@ -268,12 +247,9 @@ function showDone(res, forced) {
 
   $('doneIcon').textContent = forced ? '⚠️' : '✅';
   $('doneTitle').textContent = forced ? 'Quiz Submitted' : 'Submitted Successfully';
-
-  if (forced) {
-    $('doneSub').textContent = 'Your quiz was submitted automatically because of repeated warnings.';
-  } else {
-    $('doneSub').textContent = 'Your answers have been sent to your teacher.';
-  }
+  $('doneSub').textContent = forced
+    ? 'Your quiz was submitted automatically because of repeated warnings.'
+    : 'Your answers have been sent to your teacher.';
 
   if (state.showScore && score != null) {
     $('doneScore').style.display = 'block';
@@ -288,9 +264,7 @@ function showDone(res, forced) {
   showScreen('done');
 }
 
-/* ============================================================
-   ANTI-CHEAT
-   ============================================================ */
+/* ---------- anti-cheat ---------- */
 function installAntiCheat() {
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('blur', onBlur);
@@ -317,55 +291,39 @@ function removeAntiCheat() {
 }
 
 function blockEvent(e) { e.preventDefault(); }
-
 function blockSelect(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   e.preventDefault();
 }
 
-function onVisibility() {
-  if (document.hidden) triggerWarning('tab_hidden');
-}
-function onBlur() {
-  triggerWarning('window_blur');
-}
+function onVisibility() { if (document.hidden) triggerWarning('tab_hidden'); }
+function onBlur() { triggerWarning('window_blur'); }
 function onPopState() {
   history.pushState({ quiz: true }, '', location.href);
   triggerWarning('back_button');
 }
-function onPageHide() {
-  if (state && !submitting) setCloseFlag();
-}
+function onPageHide() { if (state && !submitting) setCloseFlag(); }
 
 async function triggerWarning(reason) {
-  if (!state || submitting) return;
-  if (modalOpen) return;
+  if (!state || submitting || modalOpen) return;
   if (Date.now() - lastWarningAt < 2500) return;
   lastWarningAt = Date.now();
 
   let newCount = state.warningCount + 1;
-  try {
-    newCount = await logEvent(state.attemptId, reason);
-  } catch (_) {}
+  try { newCount = await logEvent(state.attemptId, reason); } catch (_) {}
   state.warningCount = newCount;
   updateWarningUI();
   saveLocal();
 
-  if (newCount >= MAX_WARNINGS) {
-    modalOpen = true;
-    showWarningModal(newCount, true);
-  } else {
-    modalOpen = true;
-    showWarningModal(newCount, false);
-  }
+  modalOpen = true;
+  showWarningModal(newCount, newCount >= MAX_WARNINGS);
 }
 
 function showWarningModal(count, isFinal) {
   const remaining = Math.max(0, MAX_WARNINGS - count);
   $('warnCount').textContent = `Warning ${count} of ${WARN_MESSAGE_COUNT}`;
   if (isFinal) {
-    $('warnBody').innerHTML =
-      `You have reached the warning limit. Your quiz will be submitted now.`;
+    $('warnBody').innerHTML = `You have reached the warning limit. Your quiz will be submitted now.`;
   } else {
     $('warnBody').innerHTML =
       `Leaving this page is not allowed. ` +
@@ -377,21 +335,16 @@ function showWarningModal(count, isFinal) {
 $('btnWarnOk').addEventListener('click', async () => {
   $('modalWarning').classList.add('hidden');
   modalOpen = false;
-  if (state.warningCount >= MAX_WARNINGS) {
-    await doSubmit(true);
-  }
+  if (state.warningCount >= MAX_WARNINGS) await doSubmit(true);
 });
 
-/* ============================================================
-   BOOT
-   ============================================================ */
+/* ---------- boot ---------- */
 (async function boot() {
   $('btnStart').addEventListener('click', () => {
     const num = $('inStudentNo').value.trim();
     const name = $('inName').value.trim();
     if (!num) { $('entryErr').textContent = 'Enter your student number.'; $('entryErr').classList.remove('hidden'); return; }
     if (!name) { $('entryErr').textContent = 'Enter your full name.'; $('entryErr').classList.remove('hidden'); return; }
-
     try { localStorage.setItem('quiz_last_student', num); } catch (_) {}
     beginQuiz(window.__QUIZ_CODE__, num, name);
   });
@@ -405,6 +358,5 @@ $('btnWarnOk').addEventListener('click', async () => {
   $('inStudentNo').addEventListener('keydown', e => { if (e.key === 'Enter') $('inName').focus(); });
 
   $('btnNext').addEventListener('click', handleNext);
-
   $('entryErr').classList.add('hidden');
 })();

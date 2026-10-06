@@ -9,6 +9,11 @@
 <style>
   .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
   @media (max-width:720px){.layout{grid-template-columns:1fr}}
+  .tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:16px}
+  .tabs button{background:transparent;color:var(--muted);font-weight:600;border-radius:0;
+    padding:10px 18px;border:0;border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tabs button:hover{background:#f7f9fc;color:var(--text)}
+  .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
   .q-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
   .q-item{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
   .q-item .q-text{font-weight:600;margin-bottom:8px}
@@ -16,7 +21,9 @@
   .q-item .q-choices li{list-style:none;padding:6px 10px;border-radius:6px;background:#f7f9fc}
   .q-item .q-choices li.correct{background:#dcfce7;color:#166534;font-weight:600}
   .q-item .q-actions{display:flex;gap:6px;margin-top:10px}
-  .q-item .q-meta{color:var(--muted);font-size:.8rem;margin-top:6px}
+  .q-item .q-meta{color:var(--muted);font-size:.8rem;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+  .q-item .q-tag{background:#eff4ff;color:var(--primary);padding:2px 8px;border-radius:99px;
+    font-size:.75rem;font-weight:600}
   .choice-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
   .choice-row input[type=radio]{flex:0 0 auto;width:18px;height:18px}
   .choice-row input[type=text]{flex:1}
@@ -31,6 +38,11 @@
   .bulk-errors{color:var(--danger);font-size:.85rem;margin-top:8px}
   .bulk-errors ul{margin:4px 0 0;padding-left:20px}
   .empty-period{text-align:center;padding:40px 20px;color:var(--muted)}
+  .passage-item{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
+  .passage-item .p-title{font-weight:700;margin-bottom:6px}
+  .passage-item .p-text{color:var(--muted);font-size:.9rem;line-height:1.5;
+    max-height:100px;overflow:hidden;white-space:pre-wrap}
+  .passage-item .p-actions{display:flex;gap:6px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -55,7 +67,7 @@
 
 <main class="container">
   <h1>Question Pool</h1>
-  <p style="color:var(--muted);margin-top:-6px">Add questions to each period. Quizzes will draw randomly from these.</p>
+  <p style="color:var(--muted);margin-top:-6px">Add questions or reading passages. Quizzes draw randomly from these.</p>
 
   <div class="layout">
     <aside>
@@ -71,11 +83,17 @@
       </div>
     </aside>
 
-    <section><div id="content"></div></section>
+    <section>
+      <div class="tabs" id="tabs" style="display:none">
+        <button data-tab="questions" class="active">Questions</button>
+        <button data-tab="passages">Passages</button>
+      </div>
+      <div id="content"></div>
+    </section>
   </div>
 </main>
 
-<!-- add/edit modal -->
+<!-- ============ question modal ============ -->
 <div class="modal-back hidden" id="modalEdit">
   <div class="modal">
     <h2 id="modalEditTitle">Add question</h2>
@@ -83,6 +101,14 @@
       <label class="field">
         <span>Question</span>
         <textarea id="qText" required maxlength="1000" placeholder="Type the question…"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Passage (optional)</span>
+        <select id="qPassage">
+          <option value="">— None —</option>
+        </select>
+        <div class="hint">Attach this question to a reading passage.</div>
       </label>
 
       <div style="font-weight:600;font-size:.88rem;margin-bottom:6px">Choices — select the correct one</div>
@@ -96,21 +122,41 @@
   </div>
 </div>
 
-<!-- bulk upload modal -->
+<!-- ============ passage modal ============ -->
+<div class="modal-back hidden" id="modalPassage">
+  <div class="modal">
+    <h2 id="modalPassageTitle">Add passage</h2>
+    <form id="formPassage">
+      <label class="field">
+        <span>Title (optional)</span>
+        <input type="text" id="pTitle" maxlength="200" placeholder="e.g. The Monkey and the Turtle">
+      </label>
+      <label class="field">
+        <span>Passage text</span>
+        <textarea id="pText" required maxlength="10000" style="min-height:200px" placeholder="Paste or type the passage here…"></textarea>
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button type="button" class="ghost" id="btnCancelPassage">Cancel</button>
+        <button type="submit" id="btnSavePassage">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ bulk modal ============ -->
 <div class="modal-back hidden" id="modalBulk">
   <div class="modal">
-    <h2>Bulk upload</h2>
+    <h2>Bulk upload questions</h2>
     <p style="color:var(--muted);font-size:.9rem;margin-top:0">
       Paste questions below. Use <strong>tab</strong> or <strong>comma</strong> to separate columns.
-      The first row can be a header (optional). The last column is the correct answer.
+      First row can be a header (optional). Last column is the correct answer.
     </p>
     <div class="bulk-help">question,choiceA,choiceB,choiceC,choiceD,correct
 What is 2+2?,3,4,5,6,B
-Capital of France?,Paris,London,Rome,Madrid,A
-Which is a mammal?,Snake,Whale,Frog,Lizard,B</div>
+Capital of France?,Paris,London,Rome,Madrid,A</div>
     <p style="color:var(--muted);font-size:.85rem">
-      <strong>Correct answer</strong> can be the letter (<code>A</code>–<code>F</code>),
-      the number (<code>1</code>–<code>6</code>), or the exact text of the correct choice. 2–6 choices.
+      <strong>Correct answer</strong> can be a letter (<code>A</code>–<code>F</code>),
+      a number (<code>1</code>–<code>6</code>), or the exact text. 2–6 choices.
     </p>
     <label class="field">
       <span>Paste here</span>
@@ -128,8 +174,10 @@ Which is a mammal?,Snake,Whale,Frog,Lizard,B</div>
 <script type="module">
 import { requireAuth, signOut, getUser, escapeHtml, toast } from '../assets/supabase.js';
 import {
-  listSubjects, listQuestions, createQuestion, updateQuestion,
-  deleteQuestion, deletePeriodQuestions, bulkInsert, parseBulkText,
+  listSubjects, listQuestions, listPassages,
+  createQuestion, updateQuestion, deleteQuestion, deletePeriodQuestions,
+  createPassage, updatePassage, deletePassage, deletePeriodPassages,
+  bulkInsert, parseBulkText,
 } from '../assets/admin/questions.js';
 
 const session = await requireAuth('index.html');
@@ -141,12 +189,19 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
 });
 
 let subjects = [];
-let currentQuestions = [];
+let questions = [];
+let passages = [];
 let editingId = null;
+let editingPassageId = null;
+let activeTab = 'questions';
 
 const $ = id => document.getElementById(id);
 const content = $('content');
+const tabsEl = $('tabs');
 
+/* ============================================================
+   LOAD SUBJECTS + PERIODS
+   ============================================================ */
 async function loadSubjectsList() {
   subjects = await listSubjects();
   $('selSubject').innerHTML = '<option value="">— Select —</option>' +
@@ -159,6 +214,7 @@ $('selSubject').addEventListener('change', () => {
   if (!s) {
     sel.disabled = true;
     sel.innerHTML = '<option value="">— Select subject first —</option>';
+    tabsEl.style.display = 'none';
     renderEmpty();
     return;
   }
@@ -166,30 +222,63 @@ $('selSubject').addEventListener('change', () => {
   if (!periods.length) {
     sel.disabled = true;
     sel.innerHTML = '<option value="">— No periods —</option>';
+    tabsEl.style.display = 'none';
     renderEmpty('This subject has no periods yet. Add one in Subjects.');
     return;
   }
   sel.disabled = false;
   sel.innerHTML = '<option value="">— Select period —</option>' +
     periods.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  tabsEl.style.display = 'none';
   renderEmpty('Select a period to see its questions.');
 });
 
-$('selPeriod').addEventListener('change', () => {
-  if ($('selPeriod').value) loadQuestions($('selPeriod').value);
-  else renderEmpty('Select a period to see its questions.');
+$('selPeriod').addEventListener('change', async () => {
+  if (!$('selPeriod').value) {
+    tabsEl.style.display = 'none';
+    renderEmpty('Select a period to see its questions.');
+    return;
+  }
+  tabsEl.style.display = 'flex';
+  await loadAll();
 });
 
 function renderEmpty(msg) {
   content.innerHTML = `<div class="card empty-period">${escapeHtml(msg || 'Select a subject and period to begin.')}</div>`;
 }
 
-async function loadQuestions(periodId) {
+async function loadAll() {
   content.innerHTML = '<div class="card empty-period">Loading…</div>';
-  try { currentQuestions = await listQuestions(periodId); renderQuestions(); }
-  catch (err) { content.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`; }
+  const periodId = $('selPeriod').value;
+  try {
+    const [q, p] = await Promise.all([
+      listQuestions(periodId),
+      listPassages(periodId),
+    ]);
+    questions = q;
+    passages = p;
+    if (activeTab === 'questions') renderQuestions();
+    else renderPassages();
+  } catch (err) {
+    content.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
 }
 
+/* ============================================================
+   TABS
+   ============================================================ */
+tabsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  activeTab = btn.dataset.tab;
+  tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+  if (activeTab === 'questions') renderQuestions();
+  else renderPassages();
+});
+
+/* ============================================================
+   QUESTIONS TAB
+   ============================================================ */
 function renderQuestions() {
   const periodId = $('selPeriod').value;
   content.innerHTML = `
@@ -197,21 +286,21 @@ function renderQuestions() {
       <div class="q-toolbar">
         <button id="btnNewQ">+ Add question</button>
         <button class="ghost" id="btnBulk">Bulk upload</button>
-        <button class="ghost" id="btnDeleteAll" ${currentQuestions.length ? '' : 'disabled'}>Delete all in period</button>
+        <button class="ghost" id="btnDeleteAll" ${questions.length ? '' : 'disabled'}>Delete all questions</button>
         <span style="margin-left:auto;color:var(--muted);font-size:.9rem">
-          ${currentQuestions.length} question${currentQuestions.length === 1 ? '' : 's'}
+          ${questions.length} question${questions.length === 1 ? '' : 's'}
         </span>
       </div>
-      ${currentQuestions.length
-        ? currentQuestions.map(renderQ).join('')
+      ${questions.length
+        ? questions.map(renderQ).join('')
         : '<div class="empty-period">No questions yet. Click "Add question" or "Bulk upload" to start.</div>'}
     </div>`;
 
   $('btnNewQ').addEventListener('click', () => openEdit(null));
   $('btnBulk').addEventListener('click', openBulk);
   $('btnDeleteAll').addEventListener('click', async () => {
-    if (!confirm(`Delete ALL ${currentQuestions.length} questions in this period? This cannot be undone.`)) return;
-    try { await deletePeriodQuestions(periodId); toast('All questions deleted', 'success'); loadQuestions(periodId); }
+    if (!confirm(`Delete ALL ${questions.length} questions in this period? This cannot be undone.`)) return;
+    try { await deletePeriodQuestions(periodId); toast('All questions deleted', 'success'); loadAll(); }
     catch (err) { toast(err.message, 'error'); }
   });
   content.querySelectorAll('[data-edit]').forEach(b =>
@@ -219,20 +308,26 @@ function renderQuestions() {
   content.querySelectorAll('[data-del]').forEach(b =>
     b.addEventListener('click', async () => {
       if (!confirm('Delete this question?')) return;
-      try { await deleteQuestion(b.dataset.del); toast('Question deleted', 'success'); loadQuestions(periodId); }
+      try { await deleteQuestion(b.dataset.del); toast('Question deleted', 'success'); loadAll(); }
       catch (err) { toast(err.message, 'error'); }
     }));
 }
 
 function renderQ(q) {
   const choices = (q.choices || []).slice().sort((a,b) => a.position - b.position);
+  const passageTag = q.passages
+    ? `<span class="q-tag">📄 ${escapeHtml(q.passages.title || 'Passage')}</span>`
+    : '';
   return `
     <div class="q-item">
       <div class="q-text">${escapeHtml(q.text)}</div>
       <ul class="q-choices">
         ${choices.map(c => `<li class="${c.is_correct ? 'correct' : ''}">${escapeHtml(c.text)}${c.is_correct ? ' ✓' : ''}</li>`).join('')}
       </ul>
-      <div class="q-meta">Served ${q.served_count || 0} time${(q.served_count || 0) === 1 ? '' : 's'}</div>
+      <div class="q-meta">
+        ${passageTag}
+        <span>Served ${q.served_count || 0} time${(q.served_count || 0) === 1 ? '' : 's'}</span>
+      </div>
       <div class="q-actions">
         <button class="ghost small" data-edit="${q.id}">Edit</button>
         <button class="danger small" data-del="${q.id}">Delete</button>
@@ -240,9 +335,64 @@ function renderQ(q) {
     </div>`;
 }
 
-/* ----- add/edit ----- */
+/* ============================================================
+   PASSAGES TAB
+   ============================================================ */
+function renderPassages() {
+  const periodId = $('selPeriod').value;
+  content.innerHTML = `
+    <div class="card">
+      <div class="q-toolbar">
+        <button id="btnNewP">+ Add passage</button>
+        <button class="ghost" id="btnDeleteAllP" ${passages.length ? '' : 'disabled'}>Delete all passages</button>
+        <span style="margin-left:auto;color:var(--muted);font-size:.9rem">
+          ${passages.length} passage${passages.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      ${passages.length
+        ? passages.map(renderP).join('')
+        : '<div class="empty-period">No passages yet. Passages let you attach a shared reading text to multiple questions.</div>'}
+    </div>`;
+
+  $('btnNewP').addEventListener('click', () => openPassage(null));
+  $('btnDeleteAllP').addEventListener('click', async () => {
+    if (!confirm(`Delete ALL ${passages.length} passages in this period? Questions attached to them will become standalone.'`)) return;
+    try { await deletePeriodPassages(periodId); toast('All passages deleted', 'success'); loadAll(); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+  content.querySelectorAll('[data-edit-p]').forEach(b =>
+    b.addEventListener('click', () => openPassage(b.dataset.editP)));
+  content.querySelectorAll('[data-del-p]').forEach(b =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Delete this passage? Questions attached to it will become standalone.')) return;
+      try { await deletePassage(b.dataset.delP); toast('Passage deleted', 'success'); loadAll(); }
+      catch (err) { toast(err.message, 'error'); }
+    }));
+}
+
+function renderP(p) {
+  const qCount = questions.filter(q => q.passage_id === p.id).length;
+  const preview = (p.text || '').slice(0, 180) + ((p.text || '').length > 180 ? '…' : '');
+  return `
+    <div class="passage-item">
+      <div class="p-title">${escapeHtml(p.title || 'Untitled passage')}</div>
+      <div class="p-text">${escapeHtml(preview)}</div>
+      <div class="q-meta" style="margin-top:8px">
+        <span>${qCount} question${qCount === 1 ? '' : 's'} attached</span>
+      </div>
+      <div class="p-actions">
+        <button class="ghost small" data-edit-p="${p.id}">Edit</button>
+        <button class="danger small" data-del-p="${p.id}">Delete</button>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   QUESTION MODAL
+   ============================================================ */
 const modalEdit = $('modalEdit');
 const choiceRows = $('choiceRows');
+const selPassage = $('qPassage');
 
 function addChoiceRow(text = '', correct = false) {
   const div = document.createElement('div');
@@ -258,18 +408,25 @@ function addChoiceRow(text = '', correct = false) {
   choiceRows.appendChild(div);
 }
 
+function populatePassageSelect(selectedId) {
+  selPassage.innerHTML = '<option value="">— None —</option>' +
+    passages.map(p => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${escapeHtml(p.title || 'Untitled passage')}</option>`).join('');
+}
+
 function openEdit(id) {
   editingId = id;
   $('modalEditTitle').textContent = id ? 'Edit question' : 'Add question';
   choiceRows.innerHTML = '';
   if (id) {
-    const q = currentQuestions.find(x => x.id === id);
+    const q = questions.find(x => x.id === id);
     if (!q) return;
     $('qText').value = q.text;
+    populatePassageSelect(q.passage_id);
     (q.choices || []).slice().sort((a,b) => a.position - b.position)
       .forEach(c => addChoiceRow(c.text, c.is_correct));
   } else {
     $('qText').value = '';
+    populatePassageSelect(null);
     for (let i = 0; i < 4; i++) addChoiceRow();
     choiceRows.querySelector('input[type=radio]').checked = true;
   }
@@ -301,19 +458,65 @@ $('formQuestion').addEventListener('submit', async (e) => {
   if (choices.some(c => !c.text)) { toast('All choices must have text', 'error'); return; }
 
   const periodId = $('selPeriod').value;
+  const passageId = selPassage.value || null;
   const btn = $('btnSaveQuestion');
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    if (editingId) await updateQuestion(editingId, text, choices);
-    else await createQuestion(periodId, text, choices);
+    if (editingId) await updateQuestion(editingId, text, choices, passageId);
+    else await createQuestion(periodId, text, choices, passageId);
     toast(editingId ? 'Question updated' : 'Question added', 'success');
     closeEdit();
-    loadQuestions(periodId);
+    loadAll();
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.textContent = 'Save'; }
 });
 
-/* ----- bulk ----- */
+/* ============================================================
+   PASSAGE MODAL
+   ============================================================ */
+const modalPassage = $('modalPassage');
+
+function openPassage(id) {
+  editingPassageId = id;
+  $('modalPassageTitle').textContent = id ? 'Edit passage' : 'Add passage';
+  if (id) {
+    const p = passages.find(x => x.id === id);
+    if (!p) return;
+    $('pTitle').value = p.title || '';
+    $('pText').value = p.text || '';
+  } else {
+    $('pTitle').value = '';
+    $('pText').value = '';
+  }
+  modalPassage.classList.remove('hidden');
+  setTimeout(() => $('pText').focus(), 50);
+}
+function closePassage() { modalPassage.classList.add('hidden'); editingPassageId = null; }
+
+$('btnCancelPassage').addEventListener('click', closePassage);
+
+$('formPassage').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = $('pTitle').value.trim();
+  const text = $('pText').value.trim();
+  if (!text) { toast('Passage text is required', 'error'); return; }
+
+  const periodId = $('selPeriod').value;
+  const btn = $('btnSavePassage');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editingPassageId) await updatePassage(editingPassageId, title, text);
+    else await createPassage(periodId, title, text);
+    toast(editingPassageId ? 'Passage updated' : 'Passage added', 'success');
+    closePassage();
+    loadAll();
+  } catch (err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+});
+
+/* ============================================================
+   BULK
+   ============================================================ */
 const modalBulk = $('modalBulk');
 function openBulk() { $('bulkText').value = ''; $('bulkErrors').innerHTML = ''; modalBulk.classList.remove('hidden'); setTimeout(() => $('bulkText').focus(), 50); }
 function closeBulk() { modalBulk.classList.add('hidden'); }
@@ -340,12 +543,12 @@ $('btnDoBulk').addEventListener('click', async () => {
     await bulkInsert(periodId, parsed);
     toast(`Uploaded ${parsed.length} question${parsed.length === 1 ? '' : 's'}`, 'success');
     closeBulk();
-    loadQuestions(periodId);
+    loadAll();
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.textContent = 'Upload'; }
 });
 
-/* ----- init ----- */
+/* ---------- init ---------- */
 renderEmpty();
 await loadSubjectsList();
 </script>
