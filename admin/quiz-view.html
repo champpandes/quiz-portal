@@ -6,7 +6,6 @@
 <title>Results · Quiz Platform Champ</title>
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
-<!-- SheetJS for Excel export -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
   .head-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; }
@@ -39,7 +38,6 @@
   table.results tbody tr.kept:hover { background: #e5fbe9; }
   table.results tbody tr.flagged td { color: #7c2d12; }
   table.results td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  table.results td.right { text-align: right; }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: .75rem; font-weight: 600; }
   .pill.kept { background: #dcfce7; color: #166534; }
   .pill.flag { background: #fef3c7; color: #92400e; }
@@ -48,7 +46,6 @@
 
   .empty { background: #fff; border-radius: 10px; padding: 40px 20px; text-align: center; color: var(--muted); box-shadow: var(--shadow); }
 
-  /* detail side panel */
   .detail-back { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 100;
     display: flex; justify-content: flex-end; }
   .detail-back.hidden { display: none; }
@@ -93,15 +90,16 @@
 <body>
 
 <header class="topbar">
-<div class="brand">
-  <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-  <span>Quiz Platform <strong>Champ</strong></span>
-</div>
+  <div class="brand">
+    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
+    <span>Quiz Platform <strong>Champ</strong></span>
+  </div>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="subjects.html">Subjects</a>
     <a href="questions.html">Questions</a>
     <a href="quizzes.html" class="active">Quizzes</a>
+    <a href="settings.html">Settings</a>
   </nav>
   <div class="user">
     <span class="email" id="userEmail"></span>
@@ -116,7 +114,6 @@
   <div id="results"></div>
 </main>
 
-<!-- ============ DETAIL PANEL ============ -->
 <div class="detail-back hidden" id="detailBack">
   <div class="detail" id="detail"></div>
 </div>
@@ -152,9 +149,6 @@ let sortDir = 'desc';
 let filterText = '';
 let filterFlagged = false;
 
-/* ============================================================
-   LOAD
-   ============================================================ */
 async function load() {
   $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
   try {
@@ -189,7 +183,9 @@ function renderHead() {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <a class="btn ghost small" href="quiz-live.html?id=${quiz.id}">🔴 Live</a>
         <a class="btn ghost small" href="quiz-analytics.html?id=${quiz.id}">📊 Analytics</a>
+        <a class="btn ghost small" href="quiz-preview.html?id=${quiz.id}">👁 Preview</a>
         <a class="btn ghost small" href="quizzes.html">← All quizzes</a>
       </div>
     </div>`;
@@ -261,9 +257,6 @@ function dateStamp() {
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/* ============================================================
-   TABLE
-   ============================================================ */
 function getFilteredSorted() {
   let rows = attempts.slice();
 
@@ -343,7 +336,7 @@ function renderTable() {
     th.addEventListener('click', () => {
       const k = th.dataset.sort;
       if (sortBy === k) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-      else { sortBy = k; sortDir = k === 'started_at' ? 'desc' : 'desc'; }
+      else { sortBy = k; sortDir = 'desc'; }
       renderTable();
     });
   });
@@ -376,9 +369,6 @@ function fmtShort(iso) {
          d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-/* ============================================================
-   DETAIL PANEL
-   ============================================================ */
 async function openDetail(attemptId) {
   const back = $('detailBack');
   const panel = $('detail');
@@ -480,7 +470,6 @@ function renderAnswer(ans, idx) {
   const letters = ['A','B','C','D','E','F','G','H'];
 
   const isRight = ans.is_correct === true;
-  const borderCls = ans.choice_id == null ? '' : (isRight ? 'correct' : 'wrong');
 
   return `
     <div class="qa">
@@ -520,9 +509,6 @@ function eventLabel(type) {
   return map[type] || type;
 }
 
-/* ============================================================
-   BOOT
-   ============================================================ */
 load();
 </script>
 </body>
