@@ -91,14 +91,15 @@
   @media print {
     .topbar,
     .no-print,
-    .qr-details { display: none !important; }
+    .qr-actions,
+    .qr-size-row { display: none !important; }
 
     body { background: #fff; }
     .container { padding: 0; max-width: 100%; }
     .qr-stage {
       box-shadow: none;
       padding: 0;
-      margin: 0;
+      margin: 0 0 20px;
       page-break-inside: avoid;
     }
     .qr-title { font-size: 2rem; margin-bottom: 10px; }
@@ -106,8 +107,39 @@
     #qrcode { padding: 0; }
     #qrcode img,
     #qrcode canvas {
-      width: 16cm !important;
-      height: 16cm !important;
+      width: 14cm !important;
+      height: 14cm !important;
+    }
+
+    /* URL section in print */
+    .qr-details {
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin-top: 6px;
+    }
+    .qr-url {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      font-size: 13pt !important;
+      color: #000 !important;
+      text-align: center !important;
+      word-break: break-all !important;
+      margin: 0 auto !important;
+      max-width: 14cm;
+      line-height: 1.4;
+    }
+    /* label above the URL when printing */
+    .qr-url::before {
+      content: "Or enter this link:";
+      display: block;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 11pt;
+      color: #666;
+      font-weight: 500;
+      margin-bottom: 6px;
+      text-transform: none;
     }
   }
 </style>
@@ -143,14 +175,14 @@
   </div>
 
   <!-- DETAILS BELOW -->
-  <div class="qr-details no-print">
+  <div class="qr-details">
     <div class="qr-url" id="qrUrl"></div>
-    <div class="qr-actions">
+    <div class="qr-actions no-print">
       <button class="ghost small" id="btnCopy">Copy link</button>
       <button class="ghost small" id="btnDownload">Download PNG</button>
       <button class="ghost small" id="btnPrint">🖨 Print</button>
     </div>
-    <div class="qr-size-row">
+    <div class="qr-size-row no-print">
       <span>QR size:</span>
       <button class="ghost small" data-size="auto" data-default>Auto</button>
       <button class="ghost small" data-size="280">Small</button>
@@ -183,8 +215,7 @@ if (!QUIZ_ID) {
 
 let quiz = null;
 let quizUrl = '';
-let qrInstance = null;
-let currentMode = 'auto'; // 'auto' or a fixed number
+let currentMode = 'auto';
 let resizeTimer = null;
 
 /* ---------- wait for QRCode library ---------- */
@@ -202,12 +233,8 @@ async function waitForQRCode(timeoutMs = 5000) {
 function computeAutoSize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-
-  // aim for ~half the viewport height, capped by available width
   const byHeight = Math.floor(h * 0.50);
   const byWidth  = Math.floor(Math.min(w - 60, 700));
-
-  // minimum 240 so it's still scannable, maximum 700
   return Math.max(240, Math.min(700, byHeight, byWidth));
 }
 
@@ -219,10 +246,10 @@ function resolveSize() {
 /* ---------- render ---------- */
 function renderQR() {
   const container = $('qrcode');
-  container.innerHTML = ''; // clear previous
+  container.innerHTML = '';
   const size = resolveSize();
 
-  qrInstance = new window.QRCode(container, {
+  new window.QRCode(container, {
     text: quizUrl,
     width: size,
     height: size,
@@ -248,7 +275,6 @@ function downloadQR() {
     a.href = canvas.toDataURL('image/png');
     a.click();
   } else if (img && img.src) {
-    // If it's an img (some browsers use img), fetch and re-save
     a.href = img.src;
     a.click();
   } else {
@@ -290,7 +316,6 @@ async function load() {
 
     renderQR();
 
-    /* wire actions */
     $('btnCopy').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(quizUrl);
@@ -309,10 +334,8 @@ async function load() {
         renderQR();
       });
     });
-    // mark Auto as active on load
     document.querySelector('[data-size="auto"]').classList.add('active');
 
-    /* re-render on resize (only if in auto mode) */
     window.addEventListener('resize', () => {
       if (currentMode !== 'auto') return;
       clearTimeout(resizeTimer);
