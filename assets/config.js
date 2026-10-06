@@ -22,3 +22,5 @@ export const CLOSE_FLAG_KEY = 'quiz_close_flag_v1';   // "tab was closed" flag
 /* ---------- App ---------- */
 export const APP_NAME    = 'Quiz Platform';
 export const APP_VERSION = '1.0.0';
+
+export const ADMIN_FN_URL = 'https://xqrbvwyvuxxgfcuinxsk.supabase.co/functions/v1/admin-users';

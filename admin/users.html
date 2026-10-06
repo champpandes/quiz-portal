@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users · Quiz Platform Champ</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<style>
+  .user-row { display: flex; align-items: center; gap: 14px; }
+  .user-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--primary-soft); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .95rem; flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .user-name { font-weight: 600; }
+  .user-email { color: var(--text-muted); font-size: .85rem; }
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 99px;
+    font-size: .72rem; font-weight: 700; letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+  .pill.super    { background: #fef3c7; color: #92400e; }
+  .pill.teacher  { background: var(--primary-soft); color: var(--primary); }
+  .pill.disabled { background: var(--danger-soft); color: var(--danger); }
+  .pill.active   { background: var(--success-soft); color: var(--success); }
+  .pill.you      { background: #ede9fe; color: #6d28d9; }
+
+  table.users {
+    width: 100%; border-collapse: collapse;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-xs);
+  }
+  table.users th, table.users td {
+    padding: 12px 14px; text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.users th {
+    background: var(--card-hover);
+    font-weight: 600; font-size: .78rem;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  table.users tr:last-child td { border-bottom: 0; }
+  table.users tr.disabled td { opacity: .65; }
+
+  .stats-mini {
+    display: flex; gap: 8px; font-size: .78rem;
+    color: var(--text-muted); flex-wrap: wrap;
+  }
+  .stats-mini span b { color: var(--text); font-weight: 700; }
+
+  .actions {
+    display: flex; gap: 4px; justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .actions button {
+    padding: 5px 9px; font-size: .78rem; font-weight: 600;
+  }
+
+  .toolbar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .toolbar input[type=text] {
+    flex: 1; min-width: 180px; max-width: 320px;
+    padding: 9px 12px; font-size: 14px;
+  }
+  .toolbar .spacer { flex: 1; }
+
+  .modal-back {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,.6);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; overflow-y: auto;
+  }
+  .modal-back.hidden { display: none; }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 440px; width: 100%;
+    padding: 26px;
+    max-height: 90vh; overflow-y: auto;
+    border: 1px solid var(--border);
+  }
+  .modal h2 { margin-top: 0; }
+  .modal-actions {
+    display: flex; gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html">Quizzes</a>
+    <a href="settings.html">Settings</a>
+    <a href="users.html" class="active">Users</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1>Users</h1>
+      <p style="color:var(--text-muted);margin-top:-6px">Manage teacher accounts. Only superadmins can see this page.</p>
+    </div>
+    <button id="btnNewUser">+ New teacher</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <div class="toolbar">
+    <input type="text" id="fltSearch" placeholder="Search name or email…">
+    <label style="display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--text-muted)">
+      <input type="checkbox" id="fltDisabled"> Disabled only
+    </label>
+    <div class="spacer"></div>
+    <button class="ghost small" id="btnRefresh">Refresh</button>
+  </div>
+
+  <div id="usersList"></div>
+</main>
+
+<!-- ============ create user modal ============ -->
+<div class="modal-back hidden" id="modalCreate">
+  <div class="modal">
+    <h2>Add a teacher</h2>
+    <form id="formCreate">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="cEmail" required placeholder="teacher@example.com">
+      </label>
+      <label class="field">
+        <span>Display name</span>
+        <input type="text" id="cName" maxlength="80" placeholder="e.g. Mrs. Santos">
+        <div class="hint">Shown in the sidebar and greeting.</div>
+      </label>
+      <label class="field">
+        <span>Temporary password</span>
+        <input type="text" id="cPassword" required minlength="6" placeholder="At least 6 characters">
+        <div class="hint">Share this with the teacher. They can change it later in Settings.</div>
+      </label>
+      <div id="createErr" class="msg error hidden"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="btnCancelCreate">Cancel</button>
+        <button type="submit" id="btnSubmitCreate">Create teacher</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ set password modal ============ -->
+<div class="modal-back hidden" id="modalPw">
+  <div class="modal">
+    <h2>Set a new password</h2>
+    <p style="color:var(--text-muted);font-size:.9rem;margin-top:0">
+      Set a new password for <strong id="pwTarget"></strong>. They'll be able to sign in with it immediately.
+    </p>
+    <form id="formPw">
+      <label class="field">
+        <span>New password</span>
+        <input type="text" id="pNew" required minlength="6" placeholder="At least 6 characters">
+      </label>
+      <div id="pwErr" class="msg error hidden"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="btnCancelPw">Cancel</button>
+        <button type="submit" id="btnSubmitPw">Set password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import {
+  requireAuth, signOut, getUser, supabase, escapeHtml, fmtDate, toast,
+  callAdminFn, isSuperadmin,
+} from '../assets/supabase.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+/* ---------- guard: superadmin only ---------- */
+const superOK = await isSuperadmin();
+if (!superOK) {
+  document.querySelector('main').innerHTML =
+    '<div class="card"><h1>Not authorized</h1><p style="color:var(--text-muted)">You need superadmin access to view this page.</p></div>';
+  throw new Error('not superadmin');
+}
+
+const $ = id => document.getElementById(id);
+let profiles = [];
+let stats = {};
+let filterText = '';
+let filterDisabled = false;
+
+/* ============================================================
+   LOAD
+   ============================================================ */
+async function load() {
+  $('usersList').innerHTML = '<div class="card"><p style="color:var(--text-muted)">Loading…</p></div>';
+  $('msg').innerHTML = '';
+  try {
+    // profiles
+    const { data: pData, error: pErr } = await supabase
+      .from('profiles')
+      .select('id, email, display_name, role, disabled, disabled_at, created_at')
+      .order('created_at', { ascending: true });
+    if (pErr) throw pErr;
+
+    // stats
+    const { data: sData, error: sErr } = await supabase.rpc('get_teacher_stats');
+    if (sErr) throw sErr;
+
+    profiles = pData || [];
+    stats = {};
+    (sData || []).forEach(row => { stats[row.teacher_id] = row; });
+
+    render();
+  } catch (err) {
+    $('usersList').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  let list = profiles.slice();
+
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    list = list.filter(p =>
+      (p.email || '').toLowerCase().includes(q) ||
+      (p.display_name || '').toLowerCase().includes(q)
+    );
+  }
+  if (filterDisabled) list = list.filter(p => p.disabled);
+
+  if (!list.length) {
+    $('usersList').innerHTML = '<div class="card"><p style="color:var(--text-muted)">No users match the filter.</p></div>';
+    return;
+  }
+
+  $('usersList').innerHTML = `
+    <table class="users">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Usage</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(renderRow).join('')}
+      </tbody>
+    </table>`;
+
+  // wire action buttons
+  $('usersList').querySelectorAll('button[data-act]').forEach(btn => {
+    btn.addEventListener('click', () => handleAction(btn.dataset.act, btn.dataset.id));
+  });
+}
+
+function renderRow(p) {
+  const isMe = p.id === user.id;
+  const s = stats[p.id] || {};
+  const initial = (p.display_name || p.email || '?').trim().charAt(0);
+
+  const rolePill = p.role === 'superadmin'
+    ? '<span class="pill super">Superadmin</span>'
+    : '<span class="pill teacher">Teacher</span>';
+
+  const statusPill = p.disabled
+    ? '<span class="pill disabled">Disabled</span>'
+    : '<span class="pill active">Active</span>';
+
+  const youPill = isMe ? ' <span class="pill you">You</span>' : '';
+
+  return `
+    <tr class="${p.disabled ? 'disabled' : ''}">
+      <td>
+        <div class="user-row">
+          <div class="user-avatar">${escapeHtml(initial)}</div>
+          <div>
+            <div class="user-name">${escapeHtml(p.display_name || '—')}${youPill}</div>
+            <div class="user-email">${escapeHtml(p.email)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${rolePill}</td>
+      <td>${statusPill}</td>
+      <td>
+        <div class="stats-mini">
+          <span><b>${s.subjects || 0}</b> subj</span>
+          <span><b>${s.questions || 0}</b> q</span>
+          <span><b>${s.quizzes || 0}</b> quiz</span>
+          <span><b>${s.attempts || 0}</b> att</span>
+        </div>
+      </td>
+      <td style="white-space:nowrap;color:var(--text-muted);font-size:.85rem">
+        ${p.created_at ? fmtDate(p.created_at).split(',')[0] : '—'}
+      </td>
+      <td>
+        <div class="actions">
+          ${isMe ? '<span style="color:var(--text-muted);font-size:.8rem;padding:5px 9px">—</span>' : `
+            <button class="ghost" data-act="toggle-disabled" data-id="${p.id}">
+              ${p.disabled ? 'Enable' : 'Disable'}
+            </button>
+            <button class="ghost" data-act="toggle-role" data-id="${p.id}">
+              ${p.role === 'superadmin' ? 'Demote' : 'Promote'}
+            </button>
+            <button class="ghost" data-act="reset-pw" data-id="${p.id}">Email reset</button>
+            <button class="ghost" data-act="set-pw" data-id="${p.id}">Set password</button>
+            <button class="danger" data-act="delete" data-id="${p.id}">Delete</button>
+          `}
+        </div>
+      </td>
+    </tr>`;
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+async function handleAction(act, id) {
+  const p = profiles.find(x => x.id === id);
+  if (!p) return;
+
+  if (act === 'toggle-disabled') {
+    const next = !p.disabled;
+    if (!confirm(`${next ? 'Disable' : 'Enable'} ${p.email}?`)) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          disabled: next,
+          disabled_at: next ? new Date().toISOString() : null,
+          disabled_by: next ? user.id : null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+      toast(next ? 'Account disabled' : 'Account enabled', 'success');
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+    return;
+  }
+
+  if (act === 'toggle-role') {
+    const next = p.role === 'superadmin' ? 'teacher' : 'superadmin';
+    const msg = next === 'superadmin'
+      ? `Promote ${p.email} to superadmin? They will be able to manage all accounts.`
+      : `Demote ${p.email} to teacher? They will lose access to the Users page.`;
+    if (!confirm(msg)) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: next })
+        .eq('id', id);
+      if (error) throw error;
+      toast(`Role changed to ${next}`, 'success');
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+    return;
+  }
+
+  if (act === 'reset-pw') {
+    if (!confirm(`Send a password reset email to ${p.email}?`)) return;
+    try {
+      await callAdminFn('reset_password', { email: p.email });
+      toast('Reset email sent', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    return;
+  }
+
+  if (act === 'set-pw') {
+    $('pwTarget').textContent = p.email;
+    $('pNew').value = '';
+    $('pwErr').classList.add('hidden');
+    $('modalPw').classList.remove('hidden');
+    $('modalPw').dataset.userId = id;
+    setTimeout(() => $('pNew').focus(), 50);
+    return;
+  }
+
+  if (act === 'delete') {
+    if (!confirm(`Delete ${p.email} permanently?\n\nAll their subjects, questions, quizzes and attempts will be deleted. This cannot be undone.`)) return;
+    if (!confirm('Are you ABSOLUTELY sure? Type OK to confirm.')) return;
+    try {
+      await callAdminFn('delete_user', { user_id: id });
+      toast('User deleted', 'success');
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+    return;
+  }
+}
+
+/* ============================================================
+   CREATE MODAL
+   ============================================================ */
+$('btnNewUser').addEventListener('click', () => {
+  $('formCreate').reset();
+  $('createErr').classList.add('hidden');
+  $('modalCreate').classList.remove('hidden');
+  setTimeout(() => $('cEmail').focus(), 50);
+});
+
+$('btnCancelCreate').addEventListener('click', () => {
+  $('modalCreate').classList.add('hidden');
+});
+
+$('formCreate').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = $('createErr');
+  errEl.classList.add('hidden');
+
+  const payload = {
+    email: $('cEmail').value.trim().toLowerCase(),
+    display_name: $('cName').value.trim() || null,
+    password: $('cPassword').value,
+  };
+
+  if (!payload.email.includes('@')) {
+    errEl.textContent = 'Enter a valid email.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (payload.password.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const btn = $('btnSubmitCreate');
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  try {
+    await callAdminFn('create_user', payload);
+    toast('Teacher created', 'success');
+    $('modalCreate').classList.add('hidden');
+    load();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create teacher';
+  }
+});
+
+/* ============================================================
+   SET PASSWORD MODAL
+   ============================================================ */
+$('btnCancelPw').addEventListener('click', () => {
+  $('modalPw').classList.add('hidden');
+});
+
+$('formPw').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = $('pwErr');
+  errEl.classList.add('hidden');
+
+  const password = $('pNew').value;
+  const userId = $('modalPw').dataset.userId;
+  if (password.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const btn = $('btnSubmitPw');
+  btn.disabled = true; btn.textContent = 'Setting…';
+
+  try {
+    await callAdminFn('set_password', { user_id: userId, password });
+    toast('Password set', 'success');
+    $('modalPw').classList.add('hidden');
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Set password';
+  }
+});
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+$('fltSearch').addEventListener('input', (e) => {
+  filterText = e.target.value;
+  render();
+});
+$('fltDisabled').addEventListener('change', (e) => {
+  filterDisabled = e.target.checked;
+  render();
+});
+$('btnRefresh').addEventListener('click', load);
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+load();
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 /* ============================================================
-   SHARED SUPABASE CLIENT + HELPERS + THEME + SIDEBAR
+   SHARED SUPABASE CLIENT + HELPERS + THEME + SIDEBAR + ADMIN
    ============================================================ */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  SUPABASE_URL, SUPABASE_ANON_KEY,
+  SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_FN_URL,
   SESSION_KEY, QUEUE_KEY, CLOSE_FLAG_KEY,
 } from './config.js';
 
@@ -39,7 +39,15 @@ function initTheme() {
 }
 
 /* ============================================================
-   SIDEBAR — auto-injected from the existing .topbar markup
+   SUPABASE CLIENT (created early — needed by the sidebar check)
+   ============================================================ */
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+});
+
+/* ============================================================
+   SIDEBAR
    ============================================================ */
 
 const NAV_ICONS = {
@@ -48,7 +56,10 @@ const NAV_ICONS = {
   'questions.html': '❓',
   'quizzes.html':   '📝',
   'settings.html':  '⚙️',
+  'users.html':     '👤',
 };
+
+let _sidebarNav = null;
 
 function buildSidebar() {
   const topbar = document.querySelector('.topbar');
@@ -57,12 +68,10 @@ function buildSidebar() {
   const navLinks = [...topbar.querySelectorAll('nav a')];
   const userEl   = topbar.querySelector('.user');
 
-  // --- wrapper
   const sidebar = document.createElement('aside');
   sidebar.className = 'sidebar';
   sidebar.id = 'adminSidebar';
 
-  // --- brand
   const brand = document.createElement('a');
   brand.className = 'sidebar-brand';
   brand.href = 'dashboard.html';
@@ -72,7 +81,6 @@ function buildSidebar() {
   `;
   sidebar.appendChild(brand);
 
-  // --- nav
   const nav = document.createElement('nav');
   nav.className = 'sidebar-nav';
   navLinks.forEach(a => {
@@ -87,8 +95,8 @@ function buildSidebar() {
     nav.appendChild(link);
   });
   sidebar.appendChild(nav);
+  _sidebarNav = nav;
 
-  // --- footer
   const footer = document.createElement('div');
   footer.className = 'sidebar-footer';
 
@@ -105,16 +113,12 @@ function buildSidebar() {
   themeBtn.addEventListener('click', toggleTheme);
   footer.appendChild(themeBtn);
 
-  // move the existing user element (email + logout button) into the sidebar
   if (userEl) footer.appendChild(userEl);
-
   sidebar.appendChild(footer);
 
-  // --- insert before the current topbar, then remove the topbar
   document.body.insertBefore(sidebar, document.body.firstChild);
   topbar.remove();
 
-  // --- mobile hamburger + overlay
   const menuBtn = document.createElement('button');
   menuBtn.type = 'button';
   menuBtn.className = 'mobile-menu-btn';
@@ -140,11 +144,38 @@ function buildSidebar() {
 
   menuBtn.addEventListener('click', openSidebar);
   overlay.addEventListener('click', closeSidebar);
-  sidebar.querySelectorAll('nav a').forEach(a => {
-    a.addEventListener('click', closeSidebar);
-  });
+  nav.querySelectorAll('a').forEach(a => a.addEventListener('click', closeSidebar));
 
   return true;
+}
+
+async function addSuperadminLink() {
+  if (!_sidebarNav) return;
+  if (_sidebarNav.querySelector('a[href="users.html"]')) return;
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, disabled')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile || profile.role !== 'superadmin' || profile.disabled) return;
+
+    const link = document.createElement('a');
+    link.href = 'users.html';
+    const current = location.pathname.split('/').pop();
+    if (current === 'users.html') link.classList.add('active');
+    link.innerHTML = `
+      <span class="ico">👤</span>
+      <span>Users</span>
+    `;
+    link.style.animation = 'fadeInUp .3s ease-out both';
+    _sidebarNav.appendChild(link);
+  } catch (_) { /* silent */ }
 }
 
 function injectFloatingToggle() {
@@ -163,12 +194,11 @@ function injectFloatingToggle() {
 
 function initLayout() {
   initTheme();
-
   const run = () => {
     const built = buildSidebar();
     if (!built) injectFloatingToggle();
+    else addSuperadminLink();
   };
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
   } else {
@@ -179,15 +209,45 @@ function initLayout() {
 initLayout();
 
 /* ============================================================
-   SUPABASE CLIENT
+   ADMIN EDGE FUNCTION (superadmin only)
    ============================================================ */
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-});
+export async function callAdminFn(action, payload = {}) {
+  if (!ADMIN_FN_URL || ADMIN_FN_URL.includes('PASTE_')) {
+    throw new Error('Admin function URL not set in config.js');
+  }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not signed in');
+
+  const res = await fetch(ADMIN_FN_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + session.access_token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+export async function isSuperadmin() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, disabled')
+      .eq('id', session.user.id)
+      .single();
+    return !!data && data.role === 'superadmin' && !data.disabled;
+  } catch (_) { return false; }
+}
 
 /* ============================================================
-   STUDENT-SIDE RPCs
+   STUDENT RPCs
    ============================================================ */
 
 export async function startAttempt(code, studentNumber, studentName) {
@@ -265,6 +325,20 @@ export async function requireAuth(loginPath = '../admin/index.html') {
     location.replace(loginPath);
     return null;
   }
+  // reject disabled accounts
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('disabled')
+      .eq('id', session.user.id)
+      .single();
+    if (profile?.disabled) {
+      await supabase.auth.signOut();
+      alert('Your account has been disabled. Please contact the administrator.');
+      location.replace(loginPath);
+      return null;
+    }
+  } catch (_) { /* profile missing — allow through, migration may have missed this user */ }
   return session;
 }
 
@@ -322,8 +396,7 @@ export function fmtTime(totalSeconds) {
 
 export function fmtDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleString();
+  return new Date(iso).toLocaleString();
 }
 
 export function escapeHtml(str) {
