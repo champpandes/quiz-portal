@@ -6,36 +6,49 @@
 <title>QR Code · Quiz Platform Champ</title>
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
-<!-- QR generation library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- QR generation library (qrcodejs — very reliable on cdnjs) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  .qr-layout { display: flex; flex-direction: column; align-items: center; gap: 20px; }
-
-  .qr-card {
+  .qr-stage {
     background: #fff;
     border-radius: 16px;
     box-shadow: var(--shadow-lg);
-    padding: 28px;
+    padding: 24px 20px 20px;
     text-align: center;
-    max-width: 520px;
-    width: 100%;
+    margin-bottom: 14px;
   }
 
   .qr-title {
     font-size: 1.35rem;
     font-weight: 800;
-    margin-bottom: 6px;
+    margin: 0 0 4px;
+    line-height: 1.25;
   }
   .qr-sub {
     color: var(--muted);
-    font-size: .92rem;
-    margin-bottom: 20px;
+    font-size: .9rem;
+    margin-bottom: 18px;
   }
 
-  #qrCanvas {
+  #qrcode {
+    display: inline-block;
+    line-height: 0;
+    padding: 8px;
+    background: #fff;
+    border-radius: 10px;
+  }
+  #qrcode img,
+  #qrcode canvas {
     display: block;
-    margin: 0 auto 20px;
-    border-radius: 12px;
+    border-radius: 6px;
+  }
+
+  /* details below */
+  .qr-details {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
   }
 
   .qr-url {
@@ -46,7 +59,8 @@
     font-size: .85rem;
     word-break: break-all;
     color: var(--primary);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    text-align: center;
   }
 
   .qr-actions {
@@ -54,6 +68,7 @@
     gap: 8px;
     flex-wrap: wrap;
     justify-content: center;
+    margin-bottom: 14px;
   }
 
   .qr-size-row {
@@ -63,18 +78,37 @@
     justify-content: center;
     color: var(--muted);
     font-size: .85rem;
-    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .qr-size-row button.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
   }
 
-  /* print styles */
+  /* ---------- print ---------- */
   @media print {
-    .topbar, .qr-actions, .qr-url, .qr-size-row, .no-print { display: none !important; }
+    .topbar,
+    .no-print,
+    .qr-details { display: none !important; }
+
     body { background: #fff; }
-    .container { padding: 0; }
-    .qr-card { box-shadow: none; max-width: 100%; }
-    .qr-title { font-size: 2rem; }
-    .qr-sub { font-size: 1rem; margin-bottom: 30px; }
-    #qrCanvas { width: 500px !important; height: 500px !important; }
+    .container { padding: 0; max-width: 100%; }
+    .qr-stage {
+      box-shadow: none;
+      padding: 0;
+      margin: 0;
+      page-break-inside: avoid;
+    }
+    .qr-title { font-size: 2rem; margin-bottom: 10px; }
+    .qr-sub { font-size: 1rem; margin-bottom: 24px; }
+    #qrcode { padding: 0; }
+    #qrcode img,
+    #qrcode canvas {
+      width: 16cm !important;
+      height: 16cm !important;
+    }
   }
 </style>
 </head>
@@ -98,30 +132,30 @@
   </div>
 </header>
 
-<main class="container" style="max-width:640px">
+<main class="container" style="max-width:720px">
   <div id="head"></div>
 
-  <div class="qr-layout">
-    <div class="qr-card">
-      <div class="qr-title" id="qrTitle">Quiz</div>
-      <div class="qr-sub">Scan with your phone camera to open the quiz</div>
+  <!-- BIG QR STAGE -->
+  <div class="qr-stage">
+    <div class="qr-title" id="qrTitle">Quiz</div>
+    <div class="qr-sub">Scan with your phone camera to open the quiz</div>
+    <div id="qrcode"></div>
+  </div>
 
-      <canvas id="qrCanvas"></canvas>
-
-      <div class="qr-url" id="qrUrl"></div>
-
-      <div class="qr-actions no-print">
-        <button class="ghost small" id="btnCopy">Copy link</button>
-        <button class="ghost small" id="btnDownload">Download PNG</button>
-        <button class="ghost small" id="btnPrint">🖨 Print</button>
-      </div>
-
-      <div class="qr-size-row no-print">
-        <span>Size:</span>
-        <button class="ghost small" data-size="260">Small</button>
-        <button class="ghost small" data-size="340">Medium</button>
-        <button class="ghost small" data-size="440">Large</button>
-      </div>
+  <!-- DETAILS BELOW -->
+  <div class="qr-details no-print">
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="qr-actions">
+      <button class="ghost small" id="btnCopy">Copy link</button>
+      <button class="ghost small" id="btnDownload">Download PNG</button>
+      <button class="ghost small" id="btnPrint">🖨 Print</button>
+    </div>
+    <div class="qr-size-row">
+      <span>QR size:</span>
+      <button class="ghost small" data-size="auto" data-default>Auto</button>
+      <button class="ghost small" data-size="280">Small</button>
+      <button class="ghost small" data-size="420">Medium</button>
+      <button class="ghost small" data-size="640">Large</button>
     </div>
   </div>
 </main>
@@ -149,23 +183,103 @@ if (!QUIZ_ID) {
 
 let quiz = null;
 let quizUrl = '';
-let currentSize = 340;
+let qrInstance = null;
+let currentMode = 'auto'; // 'auto' or a fixed number
+let resizeTimer = null;
 
+/* ---------- wait for QRCode library ---------- */
+async function waitForQRCode(timeoutMs = 5000) {
+  const start = Date.now();
+  while (typeof window.QRCode === 'undefined') {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('QR library failed to load. Check your internet connection and refresh.');
+    }
+    await new Promise(r => setTimeout(r, 50));
+  }
+}
+
+/* ---------- compute the biggest sensible QR size ---------- */
+function computeAutoSize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  // aim for ~half the viewport height, capped by available width
+  const byHeight = Math.floor(h * 0.50);
+  const byWidth  = Math.floor(Math.min(w - 60, 700));
+
+  // minimum 240 so it's still scannable, maximum 700
+  return Math.max(240, Math.min(700, byHeight, byWidth));
+}
+
+function resolveSize() {
+  if (currentMode === 'auto') return computeAutoSize();
+  return parseInt(currentMode, 10);
+}
+
+/* ---------- render ---------- */
+function renderQR() {
+  const container = $('qrcode');
+  container.innerHTML = ''; // clear previous
+  const size = resolveSize();
+
+  qrInstance = new window.QRCode(container, {
+    text: quizUrl,
+    width: size,
+    height: size,
+    colorDark: '#1a202c',
+    colorLight: '#ffffff',
+    correctLevel: window.QRCode.CorrectLevel.M,
+  });
+}
+
+/* ---------- download ---------- */
+function downloadQR() {
+  const container = $('qrcode');
+  const canvas = container.querySelector('canvas');
+  const img = container.querySelector('img');
+
+  const safe = (quiz.title || 'quiz').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  const filename = `qr-${safe}-${quiz.code}.png`;
+
+  const a = document.createElement('a');
+  a.download = filename;
+
+  if (canvas) {
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  } else if (img && img.src) {
+    // If it's an img (some browsers use img), fetch and re-save
+    a.href = img.src;
+    a.click();
+  } else {
+    toast('Could not find QR image', 'error');
+  }
+}
+
+/* ---------- load ---------- */
 async function load() {
   $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
+
+  try {
+    await waitForQRCode();
+  } catch (err) {
+    $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+    return;
+  }
+
   try {
     quiz = await getQuiz(QUIZ_ID);
     quizUrl = `${location.origin}${location.pathname.replace(/admin\/quiz-qr\.html.*$/, '')}?q=${encodeURIComponent(quiz.code)}`;
 
     $('head').innerHTML = `
-      <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
+      <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
         <div>
           <h1 style="margin:0 0 4px">${escapeHtml(quiz.title)}</h1>
           <div style="color:var(--muted);font-size:.9rem">
             ${escapeHtml(quiz.subjects?.name || '—')} · ${escapeHtml(quiz.periods?.name || '—')}
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;flex-wrap:wrap" class="no-print">
           <a class="btn ghost small" href="quiz-preview.html?id=${quiz.id}">👁 Preview</a>
           <a class="btn ghost small" href="quizzes.html">← All quizzes</a>
         </div>
@@ -174,8 +288,9 @@ async function load() {
     $('qrTitle').textContent = quiz.title;
     $('qrUrl').textContent = quizUrl;
 
-    await drawQR(currentSize);
+    renderQR();
 
+    /* wire actions */
     $('btnCopy').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(quizUrl);
@@ -183,36 +298,30 @@ async function load() {
       } catch { prompt('Copy this link:', quizUrl); }
     });
 
-    $('btnDownload').addEventListener('click', () => {
-      const canvas = $('qrCanvas');
-      const a = document.createElement('a');
-      const safe = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-      a.download = `qr-${safe}-${quiz.code}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-    });
-
+    $('btnDownload').addEventListener('click', downloadQR);
     $('btnPrint').addEventListener('click', () => window.print());
 
     document.querySelectorAll('[data-size]').forEach(b => {
-      b.addEventListener('click', async () => {
-        currentSize = parseInt(b.dataset.size, 10);
-        await drawQR(currentSize);
+      b.addEventListener('click', () => {
+        currentMode = b.dataset.size;
+        document.querySelectorAll('[data-size]').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        renderQR();
       });
     });
+    // mark Auto as active on load
+    document.querySelector('[data-size="auto"]').classList.add('active');
+
+    /* re-render on resize (only if in auto mode) */
+    window.addEventListener('resize', () => {
+      if (currentMode !== 'auto') return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderQR, 250);
+    });
+
   } catch (err) {
     $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
-}
-
-async function drawQR(size) {
-  const canvas = $('qrCanvas');
-  await QRCode.toCanvas(canvas, quizUrl, {
-    width: size,
-    margin: 1,
-    color: { dark: '#1a202c', light: '#ffffff' },
-    errorCorrectionLevel: 'M',
-  });
 }
 
 load();
