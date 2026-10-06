@@ -1,5 +1,5 @@
 /* ============================================================
-   STUDENT QUIZ ENGINE
+   STUDENT QUIZ ENGINE — with review screen
    ============================================================ */
 
 import {
@@ -21,11 +21,13 @@ let submitting = false;
 const $ = id => document.getElementById(id);
 
 function showScreen(name) {
-  ['entry','loading','quiz','done','error'].forEach(s => {
+  ['entry','loading','quiz','review','done','error'].forEach(s => {
     const el = $('screen-' + s);
     if (el) el.classList.toggle('active', s === name);
   });
-  $('bottomBar').classList.toggle('hidden', name !== 'quiz');
+  // bottom bar visible on both quiz and review
+  const showBar = (name === 'quiz' || name === 'review');
+  $('bottomBar').classList.toggle('hidden', !showBar);
 }
 
 function showError(msg, icon = '⚠️') {
@@ -57,16 +59,23 @@ function saveLocal() {
     localStorage.setItem(SESSION_KEY, JSON.stringify({
       attemptId: state.attemptId,
       current: state.current,
-      warningCount: state.warningCount,
+      mode: state.mode,
+      editingFromReview: state.editingFromReview,
       startedAt: state.startedAt,
     }));
   } catch (_) {}
+}
+function loadLocal() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+  catch (_) { return null; }
 }
 function clearLocal() {
   try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
 }
 
-/* ---------- start ---------- */
+/* ============================================================
+   START
+   ============================================================ */
 async function beginQuiz(code, studentNumber, studentName) {
   showScreen('loading');
   try {
@@ -78,6 +87,8 @@ async function beginQuiz(code, studentNumber, studentName) {
       showScore:        data.show_score_at_end,
       totalQuestions:   data.total_questions,
       current:          0,
+      mode:             'quiz',           // 'quiz' | 'review'
+      editingFromReview: false,
       warningCount:     0,
       startedAt:        Date.now(),
       questions:        (data.questions || []).map(q => ({
@@ -95,8 +106,22 @@ async function beginQuiz(code, studentNumber, studentName) {
       return;
     }
 
-    $('quizTitle').textContent = state.quizTitle;
+    $('quizTitle').textContent  = state.quizTitle;
+    $('reviewTitle').textContent = state.quizTitle;
 
+    /* restore saved progress if this attempt is the same one */
+    const saved = loadLocal();
+    if (saved && saved.attemptId === data.attempt_id) {
+      state.current = Math.min(
+        Math.max(0, saved.current || 0),
+        state.questions.length - 1
+      );
+      state.mode = saved.mode === 'review' ? 'review' : 'quiz';
+      state.editingFromReview = !!saved.editingFromReview;
+      if (saved.startedAt) state.startedAt = saved.startedAt;
+    }
+
+    /* tab-close warning */
     const priorClose = consumeCloseFlag();
     if (priorClose) {
       try {
@@ -107,8 +132,7 @@ async function beginQuiz(code, studentNumber, studentName) {
 
     startElapsedTimer();
     installAntiCheat();
-    renderQuestion();
-    showScreen('quiz');
+    render();
     saveLocal();
   } catch (err) {
     const msg = err?.message || String(err);
@@ -120,7 +144,9 @@ async function beginQuiz(code, studentNumber, studentName) {
   }
 }
 
-/* ---------- timer ---------- */
+/* ============================================================
+   TIMER
+   ============================================================ */
 function startElapsedTimer() {
   clearInterval(elapsedTimer);
   updateTimerDisplay();
@@ -131,7 +157,24 @@ function updateTimerDisplay() {
   $('timer').textContent = fmtTime(Math.floor((Date.now() - state.startedAt) / 1000));
 }
 
-/* ---------- render ---------- */
+/* ============================================================
+   RENDER ROUTER
+   ============================================================ */
+function render() {
+  if (state.mode === 'review') {
+    renderReview();
+    showScreen('review');
+  } else {
+    renderQuestion();
+    showScreen('quiz');
+  }
+  updateWarningUI();
+  updateBottomBar();
+}
+
+/* ============================================================
+   QUESTION VIEW
+   ============================================================ */
 function renderQuestion() {
   const i = state.current;
   const q = state.questions[i];
@@ -140,7 +183,6 @@ function renderQuestion() {
   $('qCounter').textContent = `Question ${i + 1} of ${total}`;
   $('progressFill').style.width = ((i) / total * 100) + '%';
 
-  // passage (if any)
   const pBox = $('passageBox');
   if (q.passage) {
     $('passageTitle').textContent = q.passage.title || '';
@@ -167,13 +209,107 @@ function renderQuestion() {
     box.appendChild(el);
   });
 
-  const isLast = i === total - 1;
-  $('btnNext').textContent = isLast ? 'Submit' : 'Next';
-  $('btnNext').disabled = !q.selectedChoiceId;
-
-  updateWarningUI();
   questionShownAt = Date.now();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============================================================
+   REVIEW VIEW
+   ============================================================ */
+function renderReview() {
+  const list = $('reviewList');
+
+  list.innerHTML = state.questions.map((q, i) => {
+    const answered = q.selectedChoiceId != null;
+    const chosen = q.choices.find(c => c.id === q.selectedChoiceId);
+    const answerText = chosen?.text || '';
+    const fromPassage = q.passage
+      ? `<div class="review-passage">📄 ${escapeHtml(q.passage.title || 'Passage')}</div>`
+      : '';
+
+    return `
+      <div class="review-item ${answered ? '' : 'unanswered'}">
+        <div class="review-num">Q${i + 1}</div>
+        <div class="review-content">
+          ${fromPassage}
+          <div class="review-q">${escapeHtml(q.text)}</div>
+          <div class="review-a">
+            ${answered
+              ? `Your answer: <strong>${escapeHtml(answerText)}</strong>`
+              : `<span class="not-answered">Not answered yet</span>`}
+          </div>
+        </div>
+        <button class="ghost small" data-edit="${i}">Edit</button>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.edit, 10);
+      goToQuestion(idx, true);
+    });
+  });
+
+  // count unanswered for the summary
+  const unanswered = state.questions.filter(q => !q.selectedChoiceId).length;
+  const summary = unanswered > 0
+    ? `<div class="review-summary warn">
+         ${unanswered} question${unanswered === 1 ? '' : 's'} still unanswered.
+         You can still submit, but you'll be asked to confirm.
+       </div>`
+    : `<div class="review-summary ok">
+         All questions answered. Ready to submit!
+       </div>`;
+
+  // put summary above the list
+  const existing = list.parentElement.querySelector('.review-summary');
+  if (existing) existing.remove();
+  list.insertAdjacentHTML('beforebegin', summary);
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function goToQuestion(idx, fromReview = false) {
+  state.current = Math.min(Math.max(0, idx), state.questions.length - 1);
+  state.mode = 'quiz';
+  state.editingFromReview = fromReview;
+  saveLocal();
+  render();
+}
+
+function goToReview() {
+  state.mode = 'review';
+  state.editingFromReview = false;
+  saveLocal();
+  render();
+}
+
+/* ============================================================
+   BOTTOM BAR
+   ============================================================ */
+function updateBottomBar() {
+  const btn = $('btnNext');
+  if (!state) return;
+
+  if (state.mode === 'review') {
+    btn.textContent = 'Submit quiz';
+    btn.disabled = false;
+    return;
+  }
+
+  const q = state.questions[state.current];
+  const answered = q.selectedChoiceId != null;
+
+  if (state.editingFromReview) {
+    btn.textContent = 'Save & back to review';
+    btn.disabled = !answered;
+    return;
+  }
+
+  const isLast = state.current === state.questions.length - 1;
+  btn.textContent = isLast ? 'Review answers' : 'Next';
+  btn.disabled = !answered;
 }
 
 function updateWarningUI() {
@@ -187,7 +323,9 @@ function updateWarningUI() {
   }
 }
 
-/* ---------- answer ---------- */
+/* ============================================================
+   ANSWER PICK
+   ============================================================ */
 async function pickChoice(choiceId) {
   const q = state.questions[state.current];
   if (q.selectedChoiceId === choiceId) return;
@@ -196,46 +334,71 @@ async function pickChoice(choiceId) {
   document.querySelectorAll('.choice').forEach((el, i) => {
     el.classList.toggle('selected', q.choices[i].id === choiceId);
   });
-  $('btnNext').disabled = false;
+
+  updateBottomBar();
   saveLocal();
 
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
   try { await saveAnswer(state.attemptId, q.aa_id, choiceId, sec); } catch (_) {}
 }
 
+/* ============================================================
+   NEXT / SUBMIT
+   ============================================================ */
 async function handleNext() {
+  // in review mode → submit
+  if (state.mode === 'review') {
+    const unanswered = state.questions.filter(q => !q.selectedChoiceId).length;
+    if (unanswered > 0) {
+      const ok = confirm(
+        `You have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}.\n\n` +
+        `Submit anyway?`
+      );
+      if (!ok) return;
+    }
+    await doSubmit(false);
+    return;
+  }
+
+  // in quiz mode → save & move
   const q = state.questions[state.current];
   if (!q.selectedChoiceId) return;
 
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
   try { await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec); } catch (_) {}
 
+  if (state.editingFromReview) {
+    goToReview();
+    return;
+  }
+
   if (state.current < state.questions.length - 1) {
-    state.current++;
-    saveLocal();
-    renderQuestion();
+    goToQuestion(state.current + 1, false);
   } else {
-    await doSubmit(false);
+    goToReview();
   }
 }
 
-/* ---------- submit ---------- */
+/* ============================================================
+   SUBMIT
+   ============================================================ */
 async function doSubmit(forced) {
   if (submitting) return;
   submitting = true;
   clearInterval(elapsedTimer);
   removeAntiCheat();
 
-  $('btnNext').disabled = true;
-  $('btnNext').textContent = 'Submitting…';
+  const btn = $('btnNext');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
 
   try {
     const res = await submitAttempt(state.attemptId, forced);
     clearLocal();
     showDone(res, forced);
   } catch (err) {
-    $('btnNext').disabled = false;
-    $('btnNext').textContent = 'Submit';
+    btn.disabled = false;
+    btn.textContent = state.mode === 'review' ? 'Submit quiz' : 'Next';
     submitting = false;
     alert('Could not submit: ' + err.message + '\n\nPlease try again or tell your teacher.');
   }
@@ -264,7 +427,9 @@ function showDone(res, forced) {
   showScreen('done');
 }
 
-/* ---------- anti-cheat ---------- */
+/* ============================================================
+   ANTI-CHEAT
+   ============================================================ */
 function installAntiCheat() {
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('blur', onBlur);
@@ -297,12 +462,12 @@ function blockSelect(e) {
 }
 
 function onVisibility() { if (document.hidden) triggerWarning('tab_hidden'); }
-function onBlur() { triggerWarning('window_blur'); }
+function onBlur()       { triggerWarning('window_blur'); }
 function onPopState() {
   history.pushState({ quiz: true }, '', location.href);
   triggerWarning('back_button');
 }
-function onPageHide() { if (state && !submitting) setCloseFlag(); }
+function onPageHide()   { if (state && !submitting) setCloseFlag(); }
 
 async function triggerWarning(reason) {
   if (!state || submitting || modalOpen) return;
@@ -338,7 +503,9 @@ $('btnWarnOk').addEventListener('click', async () => {
   if (state.warningCount >= MAX_WARNINGS) await doSubmit(true);
 });
 
-/* ---------- boot ---------- */
+/* ============================================================
+   BOOT
+   ============================================================ */
 (async function boot() {
   $('btnStart').addEventListener('click', () => {
     const num = $('inStudentNo').value.trim();
@@ -358,5 +525,6 @@ $('btnWarnOk').addEventListener('click', async () => {
   $('inStudentNo').addEventListener('keydown', e => { if (e.key === 'Enter') $('inName').focus(); });
 
   $('btnNext').addEventListener('click', handleNext);
+
   $('entryErr').classList.add('hidden');
 })();

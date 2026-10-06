@@ -12,13 +12,13 @@
 
 <div class="wrap">
 
-  <!-- ============ LOADING ============ -->
+  <!-- LOADING -->
   <section class="screen" id="screen-loading">
     <div class="spinner"></div>
     <p style="text-align:center;color:#64748b">Loading quiz…</p>
   </section>
 
-  <!-- ============ ENTRY ============ -->
+  <!-- ENTRY -->
   <section class="screen active" id="screen-entry">
     <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
@@ -50,7 +50,7 @@
     </div>
   </section>
 
-  <!-- ============ QUIZ ============ -->
+  <!-- QUIZ -->
   <section class="screen" id="screen-quiz">
     <div class="card">
       <div class="quiz-header">
@@ -70,7 +70,21 @@
     </div>
   </section>
 
-  <!-- ============ DONE ============ -->
+  <!-- REVIEW -->
+  <section class="screen" id="screen-review">
+    <div class="card">
+      <div class="quiz-header">
+        <div>Review your answers</div>
+        <div class="right" id="reviewTitle"></div>
+      </div>
+      <p class="muted" style="margin:0 0 16px">
+        Check everything before submitting. Click <strong>Edit</strong> on any question to change your answer.
+      </p>
+      <div id="reviewList"></div>
+    </div>
+  </section>
+
+  <!-- DONE -->
   <section class="screen" id="screen-done">
     <div class="card">
       <div class="done-icon" id="doneIcon">✅</div>
@@ -82,7 +96,7 @@
     </div>
   </section>
 
-  <!-- ============ ERROR ============ -->
+  <!-- ERROR -->
   <section class="screen" id="screen-error">
     <div class="card err-card">
       <div class="err-icon" id="errIcon">⚠️</div>
@@ -92,7 +106,7 @@
 
 </div>
 
-<!-- ============ BOTTOM BAR ============ -->
+<!-- BOTTOM BAR -->
 <div class="bottom-bar hidden" id="bottomBar">
   <div class="info">
     <div class="timer" id="timer">0:00</div>
@@ -101,7 +115,7 @@
   <button id="btnNext" disabled>Next</button>
 </div>
 
-<!-- ============ WARNING MODAL ============ -->
+<!-- WARNING MODAL -->
 <div class="modal-back hidden" id="modalWarning">
   <div class="modal">
     <div class="icon">⚠️</div>
@@ -163,7 +177,6 @@
         'OK = continue with this name\n' +
         'Cancel = go back and edit it'
       );
-
       if (!proceed) {
         e.preventDefault(); e.stopImmediatePropagation();
         inName.focus(); inName.select();
