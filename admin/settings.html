@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings · Quiz Platform Champ</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
+<link rel="stylesheet" href="../assets/admin/admin.css">
+</head>
+<body>
+
+<!-- Placeholder topbar — the sidebar script will pick this up and replace it -->
+<header class="topbar">
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html">Quizzes</a>
+    <a href="settings.html" class="active">Settings</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container" style="max-width:760px">
+  <h1>Settings</h1>
+  <p style="color:var(--text-muted);margin-top:-6px">Manage your account and view usage.</p>
+
+  <div class="card">
+    <h2>Account</h2>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:.95rem">
+      <div><span style="color:var(--text-muted)">Email:</span> <strong id="acctEmail">—</strong></div>
+      <div><span style="color:var(--text-muted)">Account ID:</span> <code id="acctId" style="font-family:var(--font-mono);font-size:.82rem">—</code></div>
+      <div><span style="color:var(--text-muted)">Member since:</span> <span id="acctSince">—</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Change password</h2>
+    <form id="formPassword">
+      <label class="field">
+        <span>New password</span>
+        <input type="password" id="pwNew" autocomplete="new-password" minlength="6" required>
+        <div class="hint">Minimum 6 characters.</div>
+      </label>
+      <label class="field">
+        <span>Confirm new password</span>
+        <input type="password" id="pwConfirm" autocomplete="new-password" minlength="6" required>
+      </label>
+      <div id="pwMsg" class="msg hidden"></div>
+      <button type="submit" id="btnSavePw">Update password</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Your usage</h2>
+    <div id="usage" style="color:var(--text-muted)">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Data retention</h2>
+    <p style="color:var(--text-muted);font-size:.92rem;margin:0">
+      Attempts older than <strong>1 year</strong> are automatically deleted.
+      You can also delete individual quizzes from the Quizzes page, which removes all their attempts.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="color:var(--danger)">Danger zone</h2>
+    <p style="color:var(--text-muted);font-size:.92rem">
+      Signing out ends this session. You can sign back in anytime with your email and password.
+    </p>
+    <button class="danger" id="btnLogout2">Sign out</button>
+  </div>
+</main>
+
+<script type="module">
+import { requireAuth, signOut, getUser, supabase, escapeHtml, fmtDate, toast } from '../assets/supabase.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+
+const user = await getUser();
+
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('acctEmail').textContent  = user?.email || '—';
+document.getElementById('acctId').textContent     = user?.id || '—';
+document.getElementById('acctSince').textContent  = user?.created_at ? fmtDate(user.created_at) : '—';
+
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await signOut();
+  location.replace('index.html');
+});
+document.getElementById('btnLogout2').addEventListener('click', async () => {
+  await signOut();
+  location.replace('index.html');
+});
+
+/* ---------- password ---------- */
+const pwForm = document.getElementById('formPassword');
+const pwMsg  = document.getElementById('pwMsg');
+
+function showPwMsg(text, type) {
+  pwMsg.textContent = text;
+  pwMsg.className = 'msg ' + type;
+  pwMsg.classList.remove('hidden');
+}
+
+pwForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const a = document.getElementById('pwNew').value;
+  const b = document.getElementById('pwConfirm').value;
+
+  if (a.length < 6) { showPwMsg('Password must be at least 6 characters.', 'error'); return; }
+  if (a !== b)      { showPwMsg('Passwords do not match.', 'error'); return; }
+
+  const btn = document.getElementById('btnSavePw');
+  btn.disabled = true; btn.textContent = 'Updating…';
+
+  const { error } = await supabase.auth.updateUser({ password: a });
+
+  btn.disabled = false; btn.textContent = 'Update password';
+
+  if (error) {
+    showPwMsg(error.message, 'error');
+  } else {
+    showPwMsg('Password updated successfully.', 'success');
+    pwForm.reset();
+    setTimeout(() => pwMsg.classList.add('hidden'), 4000);
+  }
+});
+
+/* ---------- usage ---------- */
+(async () => {
+  const el = document.getElementById('usage');
+  try {
+    const [subjects, periods, questions, quizzes, attempts] = await Promise.all([
+      supabase.from('subjects').select('id', { count: 'exact', head: true }),
+      supabase.from('periods').select('id', { count: 'exact', head: true }),
+      supabase.from('questions').select('id', { count: 'exact', head: true }),
+      supabase.from('quizzes').select('id', { count: 'exact', head: true }),
+      supabase.from('attempts').select('id', { count: 'exact', head: true }),
+    ]);
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px">
+        <div>
+          <div style="font-size:1.5rem;font-weight:800">${subjects.count || 0}</div>
+          <div style="font-size:.85rem;color:var(--text-muted)">Subjects</div>
+        </div>
+        <div>
+          <div style="font-size:1.5rem;font-weight:800">${periods.count || 0}</div>
+          <div style="font-size:.85rem;color:var(--text-muted)">Periods</div>
+        </div>
+        <div>
+          <div style="font-size:1.5rem;font-weight:800">${questions.count || 0}</div>
+          <div style="font-size:.85rem;color:var(--text-muted)">Questions</div>
+        </div>
+        <div>
+          <div style="font-size:1.5rem;font-weight:800">${quizzes.count || 0}</div>
+          <div style="font-size:.85rem;color:var(--text-muted)">Quizzes</div>
+        </div>
+        <div>
+          <div style="font-size:1.5rem;font-weight:800">${attempts.count || 0}</div>
+          <div style="font-size:.85rem;color:var(--text-muted)">Attempts</div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.textContent = 'Could not load usage: ' + err.message;
+  }
+})();
+</script>
+</body>
+</html>
