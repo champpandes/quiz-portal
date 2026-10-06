@@ -27,12 +27,20 @@
         <span>Student number</span>
         <input type="text" id="inStudentNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 2024-00123">
       </label>
+
       <label class="field">
         <span>Full name</span>
-        <input type="text" id="inName" autocomplete="off" placeholder="e.g. Juan Dela Cruz">
+        <input type="text" id="inName" autocomplete="off"
+               placeholder="Dela Cruz, Juan P. Jr.">
       </label>
+      <p class="muted" style="margin:-8px 0 14px;font-size:.82rem">
+        Format: <strong>Last Name, First Name M.I. Suffix</strong>
+      </p>
+
       <div id="entryErr" class="info-line" style="background:#fee2e2;color:#991b1b;display:none"></div>
+
       <button class="block" id="btnStart">Start quiz</button>
+
       <p class="muted" style="text-align:center;margin-top:14px;font-size:.82rem">
         Leaving this page will be recorded. Three warnings are allowed before your quiz submits automatically.
       </p>
@@ -112,6 +120,73 @@
     // boot the engine
     await import('./assets/quiz.js');
   }
+</script>
+
+<script type="module">
+  // ---------- Entry form validation ----------
+  // Empty fields: blocking error (the quiz can't submit without them).
+  // Wrong name format: soft warning with a confirm dialog — the student can continue.
+
+  const errEl    = document.getElementById('entryErr');
+  const inName   = document.getElementById('inName');
+  const inNum    = document.getElementById('inStudentNo');
+  const btnStart = document.getElementById('btnStart');
+
+  function showEntryError(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+  function hideEntryError() {
+    errEl.style.display = 'none';
+  }
+
+  // hide the error as soon as the student starts typing again
+  inName.addEventListener('input', hideEntryError);
+  inNum.addEventListener('input', hideEntryError);
+
+  // intercept Start click in the capture phase (runs before the engine's handler)
+  btnStart.addEventListener('click', (e) => {
+    const num  = inNum.value.trim();
+    const name = inName.value.trim();
+
+    // ---- hard requirements ----
+    if (!num) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      showEntryError('Enter your student number.');
+      return;
+    }
+    if (!name) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      showEntryError('Enter your full name.');
+      return;
+    }
+
+    // ---- soft warning: name format ----
+    if (!name.includes(',')) {
+      const proceed = window.confirm(
+        'The expected format is:\n\n' +
+        '    Last Name, First Name M.I. Suffix\n\n' +
+        'Example:  Dela Cruz, Juan P. Jr.\n\n' +
+        'Your name is:  "' + name + '"\n\n' +
+        'Is this correct?\n\n' +
+        'OK = continue with this name\n' +
+        'Cancel = go back and edit it'
+      );
+
+      if (!proceed) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        inName.focus();
+        inName.select();
+        return;
+      }
+      // if the student chooses OK, fall through and let the engine start normally
+    }
+
+    hideEntryError();
+  }, true); // capture phase
 </script>
 
 </body>
