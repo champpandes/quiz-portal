@@ -10,25 +10,22 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">
-    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-    <span>Quiz Platform <strong>Champ</strong></span>
-  </div>
   <nav>
     <a href="dashboard.html" class="active">Dashboard</a>
     <a href="subjects.html">Subjects</a>
     <a href="questions.html">Questions</a>
     <a href="quizzes.html">Quizzes</a>
+    <a href="settings.html">Settings</a>
   </nav>
   <div class="user">
-    <span class="email" id="userEmail">…</span>
+    <span class="email" id="userEmail"></span>
     <button class="ghost small" id="btnLogout">Log out</button>
   </div>
 </header>
 
 <main class="container">
   <h1>Welcome back 👋</h1>
-  <p style="color:var(--muted);margin-top:-6px">
+  <p style="color:var(--text-muted);margin-top:-6px">
     Manage your subjects, questions, and quizzes here.
   </p>
 
@@ -62,7 +59,7 @@
 
   <div class="card" style="margin-top:22px">
     <h2>Getting started</h2>
-    <ol style="margin:0;padding-left:20px;color:var(--muted)">
+    <ol style="margin:0;padding-left:20px;color:var(--text-muted)">
       <li>Create a <a href="subjects.html">subject</a>, e.g. <em>Math 7</em>.</li>
       <li>Add a <strong>period</strong> inside it, e.g. <em>1st Quarter</em>.</li>
       <li>Add questions to that period, or <a href="questions.html">bulk upload</a> them.</li>
@@ -76,15 +73,12 @@
 <script type="module">
 import { requireAuth, signOut, getUser } from '../assets/supabase.js';
 
-/* gate the page */
 const session = await requireAuth('index.html');
 if (!session) throw new Error('redirecting');
 
-/* show the signed-in user */
 const user = await getUser();
 document.getElementById('userEmail').textContent = user?.email || '';
 
-/* logout */
 document.getElementById('btnLogout').addEventListener('click', async (e) => {
   e.preventDefault();
   await signOut();
