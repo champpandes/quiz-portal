@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Code · Quiz Platform Champ</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<!-- QR generation library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  .qr-layout { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+  .qr-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    padding: 28px;
+    text-align: center;
+    max-width: 520px;
+    width: 100%;
+  }
+
+  .qr-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .qr-sub {
+    color: var(--muted);
+    font-size: .92rem;
+    margin-bottom: 20px;
+  }
+
+  #qrCanvas {
+    display: block;
+    margin: 0 auto 20px;
+    border-radius: 12px;
+  }
+
+  .qr-url {
+    background: #f7f9fc;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: .85rem;
+    word-break: break-all;
+    color: var(--primary);
+    margin-bottom: 16px;
+  }
+
+  .qr-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .qr-size-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: 10px;
+  }
+
+  /* print styles */
+  @media print {
+    .topbar, .qr-actions, .qr-url, .qr-size-row, .no-print { display: none !important; }
+    body { background: #fff; }
+    .container { padding: 0; }
+    .qr-card { box-shadow: none; max-width: 100%; }
+    .qr-title { font-size: 2rem; }
+    .qr-sub { font-size: 1rem; margin-bottom: 30px; }
+    #qrCanvas { width: 500px !important; height: 500px !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
+    <span>Quiz Platform <strong>Champ</strong></span>
+  </div>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html" class="active">Quizzes</a>
+    <a href="settings.html">Settings</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container" style="max-width:640px">
+  <div id="head"></div>
+
+  <div class="qr-layout">
+    <div class="qr-card">
+      <div class="qr-title" id="qrTitle">Quiz</div>
+      <div class="qr-sub">Scan with your phone camera to open the quiz</div>
+
+      <canvas id="qrCanvas"></canvas>
+
+      <div class="qr-url" id="qrUrl"></div>
+
+      <div class="qr-actions no-print">
+        <button class="ghost small" id="btnCopy">Copy link</button>
+        <button class="ghost small" id="btnDownload">Download PNG</button>
+        <button class="ghost small" id="btnPrint">🖨 Print</button>
+      </div>
+
+      <div class="qr-size-row no-print">
+        <span>Size:</span>
+        <button class="ghost small" data-size="260">Small</button>
+        <button class="ghost small" data-size="340">Medium</button>
+        <button class="ghost small" data-size="440">Large</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { requireAuth, signOut, getUser, escapeHtml, toast } from '../assets/supabase.js';
+import { getQuiz } from '../assets/admin/results.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const QUIZ_ID = params.get('id');
+
+if (!QUIZ_ID) {
+  $('head').innerHTML = '<div class="card"><p>Missing quiz ID. <a href="quizzes.html">Go back</a>.</p></div>';
+  throw new Error('no quiz id');
+}
+
+let quiz = null;
+let quizUrl = '';
+let currentSize = 340;
+
+async function load() {
+  $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
+  try {
+    quiz = await getQuiz(QUIZ_ID);
+    quizUrl = `${location.origin}${location.pathname.replace(/admin\/quiz-qr\.html.*$/, '')}?q=${encodeURIComponent(quiz.code)}`;
+
+    $('head').innerHTML = `
+      <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h1 style="margin:0 0 4px">${escapeHtml(quiz.title)}</h1>
+          <div style="color:var(--muted);font-size:.9rem">
+            ${escapeHtml(quiz.subjects?.name || '—')} · ${escapeHtml(quiz.periods?.name || '—')}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <a class="btn ghost small" href="quiz-preview.html?id=${quiz.id}">👁 Preview</a>
+          <a class="btn ghost small" href="quizzes.html">← All quizzes</a>
+        </div>
+      </div>`;
+
+    $('qrTitle').textContent = quiz.title;
+    $('qrUrl').textContent = quizUrl;
+
+    await drawQR(currentSize);
+
+    $('btnCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(quizUrl);
+        toast('Link copied', 'success');
+      } catch { prompt('Copy this link:', quizUrl); }
+    });
+
+    $('btnDownload').addEventListener('click', () => {
+      const canvas = $('qrCanvas');
+      const a = document.createElement('a');
+      const safe = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      a.download = `qr-${safe}-${quiz.code}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+
+    $('btnPrint').addEventListener('click', () => window.print());
+
+    document.querySelectorAll('[data-size]').forEach(b => {
+      b.addEventListener('click', async () => {
+        currentSize = parseInt(b.dataset.size, 10);
+        await drawQR(currentSize);
+      });
+    });
+  } catch (err) {
+    $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function drawQR(size) {
+  const canvas = $('qrCanvas');
+  await QRCode.toCanvas(canvas, quizUrl, {
+    width: size,
+    margin: 1,
+    color: { dark: '#1a202c', light: '#ffffff' },
+    errorCorrectionLevel: 'M',
+  });
+}
+
+load();
+</script>
+</body>
+</html>

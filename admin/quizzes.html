@@ -191,6 +191,7 @@ function renderQuiz(q, stats) {
       
       <div class="quiz-actions">
         <a class="btn small" href="quiz-view.html?id=${q.id}">View results</a>
+        <a class="btn ghost small" href="quiz-qr.html?id=${q.id}">🔳 QR</a>
         <a class="btn ghost small" href="quiz-preview.html?id=${q.id}">👁 Preview</a>
         <button class="ghost small" data-action="toggle" data-id="${q.id}" data-active="${q.is_active}">
           ${q.is_active ? 'Deactivate' : 'Activate'}
