@@ -1,5 +1,5 @@
 /* ============================================================
-   SHARED SUPABASE CLIENT + HELPERS + THEME
+   SHARED SUPABASE CLIENT + HELPERS + THEME + SIDEBAR
    ============================================================ */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -9,7 +9,7 @@ import {
 } from './config.js';
 
 /* ============================================================
-   THEME (light / dark)
+   THEME
    ============================================================ */
 
 const THEME_KEY = 'quiz_theme_v1';
@@ -18,50 +18,19 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
 }
 
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+}
+
 function initTheme() {
   let saved = null;
   try { saved = localStorage.getItem(THEME_KEY); } catch (_) {}
-
-  // default: follow system preference if nothing saved
   const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   applyTheme(theme);
 
-  // inject toggle button when DOM is ready
-  const inject = () => {
-    if (document.querySelector('.theme-toggle')) return;
-
-    // find the topbar (admin) or fall back to floating button (quiz)
-    const topbar = document.querySelector('.topbar');
-    const btn = document.createElement('button');
-    btn.className = 'theme-toggle';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Toggle dark mode');
-    btn.innerHTML = '<span class="moon">🌙</span><span class="sun">☀️</span>';
-
-    btn.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
-      const next = current === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
-    });
-
-    if (topbar) {
-      // insert before the user menu if possible
-      const user = topbar.querySelector('.user');
-      if (user) topbar.insertBefore(btn, user);
-      else topbar.appendChild(btn);
-    } else {
-      document.body.appendChild(btn);
-    }
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inject);
-  } else {
-    inject();
-  }
-
-  // react to system changes only if user hasn't picked a theme
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
     let stored = null;
     try { stored = localStorage.getItem(THEME_KEY); } catch (_) {}
@@ -69,7 +38,145 @@ function initTheme() {
   });
 }
 
-initTheme();
+/* ============================================================
+   SIDEBAR — auto-injected from the existing .topbar markup
+   ============================================================ */
+
+const NAV_ICONS = {
+  'dashboard.html': '📊',
+  'subjects.html':  '📚',
+  'questions.html': '❓',
+  'quizzes.html':   '📝',
+  'settings.html':  '⚙️',
+};
+
+function buildSidebar() {
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return false;
+
+  const navLinks = [...topbar.querySelectorAll('nav a')];
+  const userEl   = topbar.querySelector('.user');
+
+  // --- wrapper
+  const sidebar = document.createElement('aside');
+  sidebar.className = 'sidebar';
+  sidebar.id = 'adminSidebar';
+
+  // --- brand
+  const brand = document.createElement('a');
+  brand.className = 'sidebar-brand';
+  brand.href = 'dashboard.html';
+  brand.innerHTML = `
+    <img src="../assets/logo-icon.svg" alt="" width="30" height="30">
+    <span>Quiz Platform <strong>Champ</strong></span>
+  `;
+  sidebar.appendChild(brand);
+
+  // --- nav
+  const nav = document.createElement('nav');
+  nav.className = 'sidebar-nav';
+  navLinks.forEach(a => {
+    const href = a.getAttribute('href') || '';
+    const link = document.createElement('a');
+    link.href = href;
+    if (a.classList.contains('active')) link.classList.add('active');
+    link.innerHTML = `
+      <span class="ico">${NAV_ICONS[href] || '•'}</span>
+      <span>${a.textContent.trim()}</span>
+    `;
+    nav.appendChild(link);
+  });
+  sidebar.appendChild(nav);
+
+  // --- footer
+  const footer = document.createElement('div');
+  footer.className = 'sidebar-footer';
+
+  const themeBtn = document.createElement('button');
+  themeBtn.type = 'button';
+  themeBtn.className = 'theme-toggle';
+  themeBtn.setAttribute('aria-label', 'Toggle dark mode');
+  themeBtn.innerHTML = `
+    <span class="ico-moon">🌙</span>
+    <span class="ico-sun">☀️</span>
+    <span class="label-dark">Dark mode</span>
+    <span class="label-light">Light mode</span>
+  `;
+  themeBtn.addEventListener('click', toggleTheme);
+  footer.appendChild(themeBtn);
+
+  // move the existing user element (email + logout button) into the sidebar
+  if (userEl) footer.appendChild(userEl);
+
+  sidebar.appendChild(footer);
+
+  // --- insert before the current topbar, then remove the topbar
+  document.body.insertBefore(sidebar, document.body.firstChild);
+  topbar.remove();
+
+  // --- mobile hamburger + overlay
+  const menuBtn = document.createElement('button');
+  menuBtn.type = 'button';
+  menuBtn.className = 'mobile-menu-btn';
+  menuBtn.setAttribute('aria-label', 'Open menu');
+  menuBtn.innerHTML = '☰';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'mobile-overlay';
+
+  document.body.appendChild(menuBtn);
+  document.body.appendChild(overlay);
+
+  const openSidebar = () => {
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
+    document.body.classList.add('sidebar-open');
+  };
+  const closeSidebar = () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+  };
+
+  menuBtn.addEventListener('click', openSidebar);
+  overlay.addEventListener('click', closeSidebar);
+  sidebar.querySelectorAll('nav a').forEach(a => {
+    a.addEventListener('click', closeSidebar);
+  });
+
+  return true;
+}
+
+function injectFloatingToggle() {
+  if (document.querySelector('.theme-toggle-float')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'theme-toggle-float';
+  btn.setAttribute('aria-label', 'Toggle dark mode');
+  btn.innerHTML = `
+    <span class="ico-moon">🌙</span>
+    <span class="ico-sun">☀️</span>
+  `;
+  btn.addEventListener('click', toggleTheme);
+  document.body.appendChild(btn);
+}
+
+function initLayout() {
+  initTheme();
+
+  const run = () => {
+    const built = buildSidebar();
+    if (!built) injectFloatingToggle();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+}
+
+initLayout();
 
 /* ============================================================
    SUPABASE CLIENT
