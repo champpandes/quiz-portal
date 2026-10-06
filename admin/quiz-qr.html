@@ -6,7 +6,6 @@
 <title>QR Code · Quiz Platform Champ</title>
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
-<!-- QR generation library (qrcodejs — very reliable on cdnjs) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   .qr-stage {
@@ -43,7 +42,6 @@
     border-radius: 6px;
   }
 
-  /* details below */
   .qr-details {
     background: #fff;
     border-radius: 14px;
@@ -111,7 +109,7 @@
       height: 14cm !important;
     }
 
-    /* URL section in print */
+    /* URL section in print — MUST stay on one line */
     .qr-details {
       box-shadow: none !important;
       background: transparent !important;
@@ -122,15 +120,18 @@
       background: transparent !important;
       border: none !important;
       padding: 0 !important;
-      font-size: 13pt !important;
+      font-size: 9pt !important;
       color: #000 !important;
       text-align: center !important;
-      word-break: break-all !important;
+      white-space: nowrap !important;
+      word-break: normal !important;
+      overflow-wrap: normal !important;
       margin: 0 auto !important;
-      max-width: 14cm;
+      max-width: none !important;
+      width: auto !important;
       line-height: 1.4;
+      letter-spacing: -0.2px;
     }
-    /* label above the URL when printing */
     .qr-url::before {
       content: "Or enter this link:";
       display: block;
@@ -139,6 +140,7 @@
       color: #666;
       font-weight: 500;
       margin-bottom: 6px;
+      letter-spacing: 0;
       text-transform: none;
     }
   }
@@ -167,14 +169,12 @@
 <main class="container" style="max-width:720px">
   <div id="head"></div>
 
-  <!-- BIG QR STAGE -->
   <div class="qr-stage">
     <div class="qr-title" id="qrTitle">Quiz</div>
     <div class="qr-sub">Scan with your phone camera to open the quiz</div>
     <div id="qrcode"></div>
   </div>
 
-  <!-- DETAILS BELOW -->
   <div class="qr-details">
     <div class="qr-url" id="qrUrl"></div>
     <div class="qr-actions no-print">
@@ -218,7 +218,6 @@ let quizUrl = '';
 let currentMode = 'auto';
 let resizeTimer = null;
 
-/* ---------- wait for QRCode library ---------- */
 async function waitForQRCode(timeoutMs = 5000) {
   const start = Date.now();
   while (typeof window.QRCode === 'undefined') {
@@ -229,7 +228,6 @@ async function waitForQRCode(timeoutMs = 5000) {
   }
 }
 
-/* ---------- compute the biggest sensible QR size ---------- */
 function computeAutoSize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -243,7 +241,6 @@ function resolveSize() {
   return parseInt(currentMode, 10);
 }
 
-/* ---------- render ---------- */
 function renderQR() {
   const container = $('qrcode');
   container.innerHTML = '';
@@ -259,7 +256,6 @@ function renderQR() {
   });
 }
 
-/* ---------- download ---------- */
 function downloadQR() {
   const container = $('qrcode');
   const canvas = container.querySelector('canvas');
@@ -282,7 +278,6 @@ function downloadQR() {
   }
 }
 
-/* ---------- load ---------- */
 async function load() {
   $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
 
