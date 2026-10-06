@@ -117,6 +117,9 @@ h3 { font-size: 1rem; }
 }
 .card.tight { padding: 14px 16px; }
 
+.login-card .logo { font-weight: 800; }
+.login-card .logo strong { color: var(--primary); }
+
 /* ---------- buttons ---------- */
 button, .btn {
   display: inline-flex;
@@ -290,3 +293,4 @@ textarea { min-height: 90px; resize: vertical; }
   .card { padding: 16px; }
   h1 { font-size: 1.3rem; }
 }
+
