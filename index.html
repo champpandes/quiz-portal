@@ -109,11 +109,9 @@
 </div>
 
 <script type="module">
-  // inject quiz code before loading the engine
   const params = new URLSearchParams(location.search);
   window.__QUIZ_CODE__ = params.get('q') || '';
 
-  // if no code at all, show an error immediately
   if (!window.__QUIZ_CODE__) {
     document.getElementById('screen-entry').classList.remove('active');
     document.getElementById('errIcon').textContent = '🔍';
@@ -121,16 +119,11 @@
       'No quiz code found. Please use the link your teacher shared.';
     document.getElementById('screen-error').classList.add('active');
   } else {
-    // boot the engine
     await import('./assets/quiz.js');
   }
 </script>
 
 <script type="module">
-  // ---------- Entry form validation ----------
-  // Empty fields: blocking error (the quiz can't submit without them).
-  // Wrong name format: soft warning with a confirm dialog — the student can continue.
-
   const errEl    = document.getElementById('entryErr');
   const inName   = document.getElementById('inName');
   const inNum    = document.getElementById('inStudentNo');
@@ -144,30 +137,24 @@
     errEl.style.display = 'none';
   }
 
-  // hide the error as soon as the student starts typing again
   inName.addEventListener('input', hideEntryError);
   inNum.addEventListener('input', hideEntryError);
 
-  // intercept Start click in the capture phase (runs before the engine's handler)
   btnStart.addEventListener('click', (e) => {
     const num  = inNum.value.trim();
     const name = inName.value.trim();
 
-    // ---- hard requirements ----
     if (!num) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      e.preventDefault(); e.stopImmediatePropagation();
       showEntryError('Enter your student number.');
       return;
     }
     if (!name) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      e.preventDefault(); e.stopImmediatePropagation();
       showEntryError('Enter your full name.');
       return;
     }
 
-    // ---- soft warning: name format ----
     if (!name.includes(',')) {
       const proceed = window.confirm(
         'The expected format is:\n\n' +
@@ -180,17 +167,14 @@
       );
 
       if (!proceed) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        inName.focus();
-        inName.select();
+        e.preventDefault(); e.stopImmediatePropagation();
+        inName.focus(); inName.select();
         return;
       }
-      // if the student chooses OK, fall through and let the engine start normally
     }
 
     hideEntryError();
-  }, true); // capture phase
+  }, true);
 </script>
 
 </body>

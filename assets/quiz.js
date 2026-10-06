@@ -12,7 +12,7 @@ import {
 } from './config.js';
 
 /* ---------- module state ---------- */
-let state = null;         // { attemptId, quizTitle, showScore, questions, current, warningCount, startedAt }
+let state = null;
 let elapsedTimer = null;
 let questionShownAt = 0;
 let lastWarningAt = 0;
@@ -51,7 +51,6 @@ function consumeCloseFlag() {
     if (!raw) return null;
     const { at } = JSON.parse(raw);
     if (!at) return null;
-    // ignore flags older than 24 hours
     if (Date.now() - at > 24 * 3600 * 1000) return null;
     return at;
   } catch (_) { return null; }
@@ -111,10 +110,8 @@ async function beginQuiz(code, studentNumber, studentName) {
 
     $('quizTitle').textContent = state.quizTitle;
 
-    // if we're resuming and had prior warnings saved, restore
     const priorClose = consumeCloseFlag();
     if (priorClose) {
-      // count a warning for having closed the tab
       try {
         const cnt = await logEvent(state.attemptId, 'tab_closed');
         state.warningCount = cnt;
@@ -159,14 +156,11 @@ function renderQuestion() {
   const q = state.questions[i];
   const total = state.questions.length;
 
-  // header
   $('qCounter').textContent = `Question ${i + 1} of ${total}`;
   $('progressFill').style.width = ((i) / total * 100) + '%';
 
-  // text
   $('questionText').textContent = q.text;
 
-  // choices
   const box = $('choices');
   box.innerHTML = '';
   const letters = ['A','B','C','D','E','F','G','H'];
@@ -181,12 +175,10 @@ function renderQuestion() {
     box.appendChild(el);
   });
 
-  // next button
   const isLast = i === total - 1;
   $('btnNext').textContent = isLast ? 'Submit' : 'Next';
   $('btnNext').disabled = !q.selectedChoiceId;
 
-  // warnings badge
   updateWarningUI();
 
   questionShownAt = Date.now();
@@ -212,22 +204,16 @@ async function pickChoice(choiceId) {
   if (q.selectedChoiceId === choiceId) return;
   q.selectedChoiceId = choiceId;
 
-  // optimistic UI
   document.querySelectorAll('.choice').forEach((el, i) => {
     el.classList.toggle('selected', q.choices[i].id === choiceId);
   });
   $('btnNext').disabled = false;
   saveLocal();
 
-  // compute seconds on this question so far
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
   try {
     await saveAnswer(state.attemptId, q.aa_id, choiceId, sec);
-  } catch (_) {
-    // offline — server-side save failed, but local state is preserved.
-    // The final submit will re-send via attempt_answers already on the server.
-    // (Attempt_answers exist from start_attempt, only choice_id is missing.)
-  }
+  } catch (_) {}
 }
 
 /* ============================================================
@@ -237,11 +223,10 @@ async function handleNext() {
   const q = state.questions[state.current];
   if (!q.selectedChoiceId) return;
 
-  // make sure the answer is persisted before moving on
   const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
   try {
     await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec);
-  } catch (_) { /* best-effort */ }
+  } catch (_) {}
 
   if (state.current < state.questions.length - 1) {
     state.current++;
@@ -333,7 +318,6 @@ function removeAntiCheat() {
 function blockEvent(e) { e.preventDefault(); }
 
 function blockSelect(e) {
-  // allow selection inside text inputs
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   e.preventDefault();
 }
@@ -349,23 +333,19 @@ function onPopState() {
   triggerWarning('back_button');
 }
 function onPageHide() {
-  // page is genuinely unloading → set flag for next load to detect
   if (state && !submitting) setCloseFlag();
 }
 
 async function triggerWarning(reason) {
   if (!state || submitting) return;
   if (modalOpen) return;
-  // debounce — visibilitychange + blur fire together
   if (Date.now() - lastWarningAt < 2500) return;
   lastWarningAt = Date.now();
 
   let newCount = state.warningCount + 1;
   try {
     newCount = await logEvent(state.attemptId, reason);
-  } catch (_) {
-    // keep local count if server unreachable
-  }
+  } catch (_) {}
   state.warningCount = newCount;
   updateWarningUI();
   saveLocal();
@@ -411,24 +391,19 @@ $('btnWarnOk').addEventListener('click', async () => {
     if (!num) { $('entryErr').textContent = 'Enter your student number.'; $('entryErr').classList.remove('hidden'); return; }
     if (!name) { $('entryErr').textContent = 'Enter your full name.'; $('entryErr').classList.remove('hidden'); return; }
 
-    // remember student number for next time on this device
     try { localStorage.setItem('quiz_last_student', num); } catch (_) {}
-
     beginQuiz(window.__QUIZ_CODE__, num, name);
   });
 
-  // prefill student number if we've seen it before
   try {
     const last = localStorage.getItem('quiz_last_student');
     if (last) $('inStudentNo').value = last;
   } catch (_) {}
 
-  // submit on Enter in name field
   $('inName').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnStart').click(); });
   $('inStudentNo').addEventListener('keydown', e => { if (e.key === 'Enter') $('inName').focus(); });
 
   $('btnNext').addEventListener('click', handleNext);
 
-  // entry error box
   $('entryErr').classList.add('hidden');
 })();
