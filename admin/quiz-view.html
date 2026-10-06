@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Results · Quiz Platform</title>
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<!-- SheetJS for Excel export -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+  .head-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .head-card h1 { margin: 0 0 4px; }
+  .head-meta { color: var(--muted); font-size: .9rem; }
+  .code-chip { background: #eff4ff; color: var(--primary); font-family: ui-monospace,Menlo,Consolas,monospace;
+    padding: 4px 10px; border-radius: 6px; font-size: .85rem; font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+  .tile-stat { background: #fff; border-radius: 10px; padding: 14px; box-shadow: var(--shadow); }
+  .tile-stat .lbl { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .tile-stat .num { font-size: 1.6rem; font-weight: 800; margin-top: 2px; }
+  .tile-stat.warn .num { color: var(--warn); }
+  .tile-stat.danger .num { color: var(--danger); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0 12px; }
+  .toolbar input[type=text] { flex: 1; min-width: 180px; max-width: 320px; padding: 9px 12px; font-size: 14px; }
+  .toolbar select { padding: 9px 12px; font-size: 14px; }
+  .toolbar .spacer { flex: 1; }
+
+  table.results { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px;
+    overflow: hidden; box-shadow: var(--shadow); font-size: .92rem; }
+  table.results th, table.results td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.results th { background: #f7f9fc; font-weight: 600; font-size: .82rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .03em; cursor: pointer; user-select: none; white-space: nowrap; }
+  table.results th:hover { background: #eef2f7; }
+  table.results tbody tr { cursor: pointer; }
+  table.results tbody tr:hover { background: #f9fbfd; }
+  table.results tbody tr.kept { background: #f0fdf4; }
+  table.results tbody tr.kept:hover { background: #e5fbe9; }
+  table.results tbody tr.flagged td { color: #7c2d12; }
+  table.results td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.results td.right { text-align: right; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: .75rem; font-weight: 600; }
+  .pill.kept { background: #dcfce7; color: #166534; }
+  .pill.flag { background: #fef3c7; color: #92400e; }
+  .pill.forced { background: #fee2e2; color: #991b1b; }
+  .pill.abandon { background: #e2e8f0; color: #475569; }
+
+  .empty { background: #fff; border-radius: 10px; padding: 40px 20px; text-align: center; color: var(--muted); box-shadow: var(--shadow); }
+
+  /* detail side panel */
+  .detail-back { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 100;
+    display: flex; justify-content: flex-end; }
+  .detail-back.hidden { display: none; }
+  .detail { background: #fff; width: 100%; max-width: 620px; height: 100%; overflow-y: auto;
+    padding: 22px 22px 40px; box-shadow: -8px 0 24px rgba(0,0,0,.12); }
+  .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .detail-head h2 { margin: 0 0 4px; font-size: 1.1rem; }
+  .detail-meta { color: var(--muted); font-size: .87rem; }
+  .close-x { background: transparent; color: var(--muted); font-size: 1.4rem; padding: 4px 8px; }
+  .close-x:hover { background: #f1f5f9; color: var(--text); }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .stat-grid .item { background: #f7f9fc; border-radius: 8px; padding: 10px 12px; }
+  .stat-grid .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat-grid .val { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+
+  .detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+
+  .qa { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .qa-head { padding: 10px 14px; background: #f7f9fc; font-size: .82rem; color: var(--muted); display: flex; justify-content: space-between; }
+  .qa-body { padding: 12px 14px; }
+  .qa-text { font-weight: 600; margin-bottom: 10px; font-size: .95rem; line-height: 1.45; }
+  .qa-choices { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+  .qa-choices li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; display: flex; gap: 8px; }
+  .qa-choices li.correct { background: #dcfce7; color: #166534; }
+  .qa-choices li.wrong { background: #fee2e2; color: #991b1b; }
+  .qa-choices li.picked { outline: 2px solid #94a3b8; outline-offset: -2px; }
+  .qa-choices li .mark { font-weight: 700; flex: 0 0 20px; }
+
+  .events { background: #fef9f3; border: 1px solid #fde4c8; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: .87rem; }
+  .events h3 { margin: 0 0 8px; font-size: .9rem; color: #92400e; }
+  .events ul { margin: 0; padding-left: 18px; }
+  .events li { margin-bottom: 3px; color: #7c2d12; }
+
+  @media (max-width: 720px) {
+    table.results { font-size: .85rem; }
+    table.results th, table.results td { padding: 8px 8px; }
+    .detail { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Quiz<span>Platform</span></div>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html" class="active">Quizzes</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container" id="main">
+  <div id="head"></div>
+  <div id="stats"></div>
+  <div id="toolbar"></div>
+  <div id="results"></div>
+</main>
+
+<!-- ============ DETAIL PANEL ============ -->
+<div class="detail-back hidden" id="detailBack">
+  <div class="detail" id="detail"></div>
+</div>
+
+<script type="module">
+import { requireAuth, signOut, getUser, escapeHtml, fmtDate, toast } from '../assets/supabase.js';
+import {
+  getQuiz, listAttempts, getAttemptDetail, setKept, setFlagged, deleteAttempt,
+  flattenAttempts, downloadCSV, downloadXLSX,
+} from '../assets/admin/results.js';
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const QUIZ_ID = params.get('id');
+
+if (!QUIZ_ID) {
+  $('main').innerHTML = '<div class="card"><p>Missing quiz ID. <a href="quizzes.html">Go back to quizzes</a>.</p></div>';
+  throw new Error('no quiz id');
+}
+
+let quiz = null;
+let attempts = [];
+let sortBy = 'started_at';
+let sortDir = 'desc';
+let filterText = '';
+let filterFlagged = false;
+
+/* ============================================================
+   LOAD
+   ============================================================ */
+async function load() {
+  $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
+  try {
+    quiz = await getQuiz(QUIZ_ID);
+    attempts = await listAttempts(QUIZ_ID);
+    renderHead();
+    renderStats();
+    renderToolbar();
+    renderTable();
+  } catch (err) {
+    $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderHead() {
+  const subjectName = quiz.subjects?.name || '—';
+  const periodName = quiz.periods?.name || '—';
+  const quizUrl = `${location.origin}${location.pathname.replace(/admin\/quiz-view\.html.*$/, '')}?q=${encodeURIComponent(quiz.code)}`;
+
+  $('head').innerHTML = `
+    <div class="card head-card">
+      <div>
+        <h1>${escapeHtml(quiz.title)}</h1>
+        <div class="head-meta">
+          ${escapeHtml(subjectName)} · ${escapeHtml(periodName)} ·
+          ${quiz.num_questions} questions ·
+          ${quiz.is_active ? '<span style="color:#16a34a">Active</span>' : '<span style="color:#dc2626">Inactive</span>'}
+        </div>
+        <div style="margin-top:8px">
+          <span class="code-chip" title="Share code">${escapeHtml(quiz.code)}</span>
+          <button class="ghost small" id="btnCopyLink" style="margin-left:6px">Copy student link</button>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <a class="btn ghost small" href="quizzes.html">← All quizzes</a>
+      </div>
+    </div>`;
+
+  $('btnCopyLink').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(quizUrl);
+      toast('Student link copied', 'success');
+    } catch {
+      prompt('Copy this link:', quizUrl);
+    }
+  });
+}
+
+function renderStats() {
+  const total = attempts.length;
+  const submitted = attempts.filter(a => a.submitted).length;
+  const flagged = attempts.filter(a => a.is_flagged).length;
+  const forced = attempts.filter(a => a.force_submitted).length;
+  const uniqueStudents = new Set(attempts.map(a => a.student_number)).size;
+
+  const submittedOnes = attempts.filter(a => a.submitted && a.percent != null);
+  const avgPercent = submittedOnes.length
+    ? Math.round(submittedOnes.reduce((s, a) => s + Number(a.percent || 0), 0) / submittedOnes.length)
+    : 0;
+
+  $('stats').innerHTML = `
+    <div class="tiles">
+      <div class="tile-stat"><div class="lbl">Students</div><div class="num">${uniqueStudents}</div></div>
+      <div class="tile-stat"><div class="lbl">Attempts</div><div class="num">${total}</div></div>
+      <div class="tile-stat"><div class="lbl">Submitted</div><div class="num">${submitted}</div></div>
+      <div class="tile-stat"><div class="lbl">Class avg</div><div class="num">${avgPercent}%</div></div>
+      <div class="tile-stat warn"><div class="lbl">Flagged</div><div class="num">${flagged}</div></div>
+      <div class="tile-stat danger"><div class="lbl">Forced</div><div class="num">${forced}</div></div>
+    </div>`;
+}
+
+function renderToolbar() {
+  $('toolbar').innerHTML = `
+    <div class="toolbar">
+      <input type="text" id="fltText" placeholder="Search name or student no…" value="${escapeHtml(filterText)}">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted)">
+        <input type="checkbox" id="fltFlagged" ${filterFlagged ? 'checked' : ''}> Flagged only
+      </label>
+      <div class="spacer"></div>
+      <button class="ghost small" id="btnExportCSV">Export CSV</button>
+      <button class="ghost small" id="btnExportXLSX">Export Excel</button>
+      <button class="ghost small" id="btnRefresh">Refresh</button>
+    </div>`;
+
+  $('fltText').addEventListener('input', e => { filterText = e.target.value; renderTable(); });
+  $('fltFlagged').addEventListener('change', e => { filterFlagged = e.target.checked; renderTable(); });
+  $('btnRefresh').addEventListener('click', load);
+
+  $('btnExportCSV').addEventListener('click', () => {
+    const rows = flattenAttempts(getFilteredSorted());
+    const safeName = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    downloadCSV(rows, `${safeName}-results-${dateStamp()}.csv`);
+  });
+  $('btnExportXLSX').addEventListener('click', () => {
+    const rows = flattenAttempts(getFilteredSorted());
+    const safeName = quiz.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    downloadXLSX(rows, `${safeName}-results-${dateStamp()}.xlsx`, 'Results');
+  });
+}
+
+function dateStamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+function getFilteredSorted() {
+  let rows = attempts.slice();
+
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    rows = rows.filter(a =>
+      (a.student_name || '').toLowerCase().includes(q) ||
+      (a.student_number || '').toLowerCase().includes(q)
+    );
+  }
+  if (filterFlagged) rows = rows.filter(a => a.is_flagged);
+
+  rows.sort((a, b) => {
+    const av = a[sortBy];
+    const bv = b[sortBy];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
+    return sortDir === 'asc'
+      ? String(av).localeCompare(String(bv))
+      : String(bv).localeCompare(String(av));
+  });
+  return rows;
+}
+
+function renderTable() {
+  const rows = getFilteredSorted();
+  if (!attempts.length) {
+    $('results').innerHTML = '<div class="empty">No attempts yet. Share the quiz link with your students.</div>';
+    return;
+  }
+  if (!rows.length) {
+    $('results').innerHTML = '<div class="empty">No attempts match the current filter.</div>';
+    return;
+  }
+
+  const cols = [
+    { key: 'student_name',   label: 'Name' },
+    { key: 'student_number', label: 'Student No' },
+    { key: 'score',          label: 'Score',   num: true },
+    { key: 'percent',        label: 'Percent', num: true },
+    { key: 'warning_count',  label: 'Warn',    num: true },
+    { key: 'duration_seconds', label: 'Time',  num: true },
+    { key: 'started_at',     label: 'Started' },
+    { key: '_status',        label: 'Status' },
+  ];
+
+  const arrow = k => sortBy === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  $('results').innerHTML = `
+    <table class="results">
+      <thead>
+        <tr>
+          ${cols.map(c => `<th data-sort="${c.key}">${c.label}${arrow(c.key)}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(a => {
+          const cls = [a.is_kept ? 'kept' : '', a.is_flagged ? 'flagged' : ''].filter(Boolean).join(' ');
+          return `
+            <tr data-id="${a.id}" class="${cls}">
+              <td>${escapeHtml(a.student_name)}</td>
+              <td>${escapeHtml(a.student_number)}</td>
+              <td class="num">${a.score ?? '—'}<span style="color:var(--muted)">/${a.total_questions}</span></td>
+              <td class="num">${a.percent != null ? a.percent + '%' : '—'}</td>
+              <td class="num">${a.warning_count || 0}</td>
+              <td class="num">${fmtDur(a.duration_seconds)}</td>
+              <td>${fmtShort(a.started_at)}</td>
+              <td>${statusPills(a)}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  $('results').querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortBy === k) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortBy = k; sortDir = k === 'started_at' ? 'desc' : 'desc'; }
+      renderTable();
+    });
+  });
+
+  $('results').querySelectorAll('tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => openDetail(tr.dataset.id));
+  });
+}
+
+function statusPills(a) {
+  const pills = [];
+  if (a.is_kept)        pills.push('<span class="pill kept">kept</span>');
+  if (a.is_flagged)     pills.push('<span class="pill flag">flagged</span>');
+  if (a.force_submitted) pills.push('<span class="pill forced">forced</span>');
+  if (a.abandoned)      pills.push('<span class="pill abandon">abandoned</span>');
+  return pills.join(' ') || '<span style="color:var(--muted)">—</span>';
+}
+
+function fmtDur(s) {
+  if (s == null) return '—';
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2,'0')}`;
+}
+
+function fmtShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+         d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ============================================================
+   DETAIL PANEL
+   ============================================================ */
+async function openDetail(attemptId) {
+  const back = $('detailBack');
+  const panel = $('detail');
+  panel.innerHTML = '<div class="spinner" style="margin:80px auto"></div>';
+  back.classList.remove('hidden');
+
+  try {
+    const { attempt, answers, events } = await getAttemptDetail(attemptId);
+    renderDetail(attempt, answers, events);
+  } catch (err) {
+    panel.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeDetail() { $('detailBack').classList.add('hidden'); }
+
+$('detailBack').addEventListener('click', (e) => {
+  if (e.target.id === 'detailBack') closeDetail();
+});
+
+function renderDetail(a, answers, events) {
+  const panel = $('detail');
+  const answeredCount = answers.filter(x => x.choice_id).length;
+
+  panel.innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h2>${escapeHtml(a.student_name)}</h2>
+        <div class="detail-meta">
+          Student No: <strong>${escapeHtml(a.student_number)}</strong> ·
+          Attempt ID: <code style="font-size:.8rem">${a.id.slice(0,8)}</code>
+        </div>
+      </div>
+      <button class="close-x" id="btnCloseDetail">✕</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="item"><div class="lbl">Score</div><div class="val">${a.score ?? '—'} / ${a.total_questions}</div></div>
+      <div class="item"><div class="lbl">Percent</div><div class="val">${a.percent != null ? a.percent + '%' : '—'}</div></div>
+      <div class="item"><div class="lbl">Time</div><div class="val">${fmtDur(a.duration_seconds)}</div></div>
+      <div class="item"><div class="lbl">Warnings</div><div class="val">${a.warning_count}</div></div>
+      <div class="item"><div class="lbl">Answered</div><div class="val">${answeredCount} / ${answers.length}</div></div>
+    </div>
+
+    <div class="detail-actions">
+      <button class="ghost small" id="btnToggleKept">${a.is_kept ? '★ Unmark as kept' : '☆ Mark as kept'}</button>
+      <button class="ghost small" id="btnToggleFlag">${a.is_flagged ? '✓ Clear flag' : '⚑ Flag this attempt'}</button>
+      <button class="danger small" id="btnDeleteAttempt">Delete attempt</button>
+    </div>
+
+    ${events.length ? `
+      <div class="events">
+        <h3>⚠ Anti-cheat events (${events.length})</h3>
+        <ul>
+          ${events.map(e => `<li>${escapeHtml(eventLabel(e.event_type))} — ${fmtDate(e.at)}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+
+    <h3 style="margin:18px 0 10px;font-size:.95rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Answers</h3>
+    ${answers.map((ans, i) => renderAnswer(ans, i)).join('')}
+  `;
+
+  $('btnCloseDetail').addEventListener('click', closeDetail);
+
+  $('btnToggleKept').addEventListener('click', async () => {
+    try {
+      await setKept(a.id, !a.is_kept);
+      toast(a.is_kept ? 'Unmarked as kept' : 'Marked as kept', 'success');
+      closeDetail();
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+
+  $('btnToggleFlag').addEventListener('click', async () => {
+    try {
+      await setFlagged(a.id, !a.is_flagged);
+      toast(a.is_flagged ? 'Flag cleared' : 'Flagged', 'success');
+      closeDetail();
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+
+  $('btnDeleteAttempt').addEventListener('click', async () => {
+    if (!confirm('Delete this attempt permanently?')) return;
+    try {
+      await deleteAttempt(a.id);
+      toast('Attempt deleted', 'success');
+      closeDetail();
+      load();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+function renderAnswer(ans, idx) {
+  const q = ans.questions;
+  if (!q) return '';
+  const choices = (q.choices || []).slice().sort((a, b) => a.position - b.position);
+  const pickedId = ans.choice_id;
+  const letters = ['A','B','C','D','E','F','G','H'];
+
+  const isRight = ans.is_correct === true;
+  const borderCls = ans.choice_id == null ? '' : (isRight ? 'correct' : 'wrong');
+
+  return `
+    <div class="qa">
+      <div class="qa-head">
+        <span>Q${idx + 1} · ${ans.seconds_spent || 0}s spent</span>
+        <span>${ans.choice_id == null ? '<span style="color:#92400e">Not answered</span>'
+              : isRight ? '<span style="color:#166534">✓ Correct</span>'
+                        : '<span style="color:#991b1b">✗ Wrong</span>'}</span>
+      </div>
+      <div class="qa-body">
+        <div class="qa-text">${escapeHtml(q.text)}</div>
+        <ul class="qa-choices">
+          ${choices.map((c, i) => {
+            const isCorrect = c.is_correct;
+            const isPicked  = c.id === pickedId;
+            const cls = [];
+            if (isCorrect) cls.push('correct');
+            if (isPicked && !isCorrect) cls.push('wrong');
+            if (isPicked) cls.push('picked');
+            const mark = isCorrect ? '✓' : (isPicked ? '✗' : '');
+            const youTag = isPicked ? ' <em style="font-style:normal;color:var(--muted);font-size:.82rem">— student\'s answer</em>' : '';
+            return `<li class="${cls.join(' ')}"><span class="mark">${letters[i] || ''}</span><span>${escapeHtml(c.text)}${youTag} <span style="float:right;font-weight:700">${mark}</span></span></li>`;
+          }).join('')}
+        </ul>
+      </div>
+    </div>`;
+}
+
+function eventLabel(type) {
+  const map = {
+    tab_hidden: 'Switched tab or app',
+    window_blur: 'Window lost focus',
+    back_button: 'Pressed back button',
+    tab_closed: 'Closed the tab',
+    long_disconnect: 'Long network disconnect',
+  };
+  return map[type] || type;
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+load();
+</script>
+</body>
+</html>
