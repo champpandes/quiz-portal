@@ -53,12 +53,25 @@ h3 { font-size: 1rem; }
   z-index: 50;
 }
 .topbar .brand {
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
   font-size: 1rem;
   color: var(--text);
   white-space: nowrap;
 }
-.topbar .brand span { color: var(--primary); }
+.topbar .brand img {
+  display: block;
+  border-radius: 6px;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+}
+.topbar .brand strong {
+  font-weight: 800;
+  color: var(--primary);
+}
 .topbar nav {
   display: flex;
   gap: 4px;
