@@ -6,7 +6,7 @@ import { supabase } from '../supabase.js';
 
 /* ---------- helpers ---------- */
 export function generateCode(prefix = '') {
-  const chars = 'abcdefghijkmnpqrstuvwxyz23456789'; // no confusing chars
+  const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
   let s = '';
   for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return prefix ? `${prefix}-${s}` : s;
@@ -35,7 +35,7 @@ export async function listQuizzes() {
   const { data, error } = await supabase
     .from('quizzes')
     .select(`
-      id, title, code, num_questions, is_active, created_at, expires_at,
+      id, title, code, num_questions, is_active, created_at, opens_at, expires_at,
       shuffle_questions, shuffle_choices, show_score_at_end,
       subject_id, period_id,
       subjects(name),
@@ -63,7 +63,6 @@ export async function createQuiz(input) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
 
-  // verify pool size
   const available = await countQuestionsInPeriod(input.period_id);
   if (available < input.num_questions) {
     throw new Error(
@@ -84,6 +83,7 @@ export async function createQuiz(input) {
       shuffle_questions: input.shuffle_questions,
       shuffle_choices: input.shuffle_choices,
       show_score_at_end: input.show_score_at_end,
+      opens_at: input.opens_at || null,
       expires_at: input.expires_at || null,
     })
     .select()

@@ -129,6 +129,7 @@ async function beginQuiz(code, studentNumber, studentName) {
     const msg = err?.message || String(err);
     if (/not found/i.test(msg))         showError('Quiz not found. Check the link your teacher shared.', '🔍');
     else if (/not active/i.test(msg))   showError('This quiz is not currently active. Please contact your teacher.', '⏸️');
+    else if (/not open yet/i.test(msg)) showError('This quiz is not open yet. Please come back later or ask your teacher.', '🕒');
     else if (/expired/i.test(msg))      showError('This quiz has expired. Please contact your teacher.', '⏰');
     else                                 showError('Could not start the quiz: ' + msg, '⚠️');
   }

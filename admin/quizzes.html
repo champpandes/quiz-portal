@@ -20,7 +20,7 @@
   .badge.inactive{background:#fee2e2;color:#991b1b}
   .badge.flag{background:#fef3c7;color:#92400e}
   .quiz-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  .stats{display:flex;gap:14px;font-size:.85rem;color:var(--muted);margin-bottom:10px}
+  .stats{display:flex;gap:14px;font-size:.85rem;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
   .stats b{color:var(--text)}
   .modal-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;
     display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
@@ -35,15 +35,16 @@
 <body>
 
 <header class="topbar">
-<div class="brand">
-  <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-  <span>Quiz Platform <strong>Champ</strong></span>
-</div>
+  <div class="brand">
+    <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
+    <span>Quiz Platform <strong>Champ</strong></span>
+  </div>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="subjects.html">Subjects</a>
     <a href="questions.html">Questions</a>
     <a href="quizzes.html" class="active">Quizzes</a>
+    <a href="settings.html">Settings</a>
   </nav>
   <div class="user">
     <span class="email" id="userEmail"></span>
@@ -94,7 +95,7 @@
           <span>Share code</span>
           <input type="text" id="qCode" required maxlength="40" pattern="[a-zA-Z0-9\-]+"
                  placeholder="e.g. math7-midterm">
-          <div class="hint">Letters, numbers, hyphens. This goes in the student URL.</div>
+          <div class="hint">Letters, numbers, hyphens. Goes in the student URL.</div>
         </label>
       </div>
 
@@ -102,11 +103,19 @@
       <div class="switch"><input type="checkbox" id="qShuffleC" checked> <label for="qShuffleC">Shuffle answer choices</label></div>
       <div class="switch"><input type="checkbox" id="qShowScore" checked> <label for="qShowScore">Show score to student after submit</label></div>
 
-      <label class="field" style="margin-top:12px">
-        <span>Expires (optional)</span>
-        <input type="datetime-local" id="qExpires">
-        <div class="hint">Leave blank to keep open indefinitely.</div>
-      </label>
+      <div class="row-2" style="margin-top:12px">
+        <label class="field">
+          <span>Opens at (optional)</span>
+          <input type="datetime-local" id="qOpens">
+          <div class="hint">When the quiz becomes available.</div>
+        </label>
+
+        <label class="field">
+          <span>Closes at (optional)</span>
+          <input type="datetime-local" id="qExpires">
+          <div class="hint">When it stops accepting attempts.</div>
+        </label>
+      </div>
 
       <div id="quizErr" class="msg error hidden"></div>
 
@@ -147,7 +156,6 @@ async function refreshList() {
       el.innerHTML = '<div class="card"><p style="color:var(--muted)">No quizzes yet. Click "+ New quiz" to create one.</p></div>';
       return;
     }
-    // fetch stats in parallel
     const stats = await Promise.all(quizzes.map(q => getAttemptStats(q.id)));
     el.innerHTML = quizzes.map((q, i) => renderQuiz(q, stats[i])).join('');
     attachHandlers();
@@ -178,6 +186,8 @@ function renderQuiz(q, stats) {
         <div>${activeBadge} ${flagBadge}</div>
       </div>
 
+      ${renderScheduleBadge(q)}
+
       <div class="code-row">
         <span class="code">${escapeHtml(q.code)}</span>
         <button class="ghost small" data-copy="${escapeHtml(url)}">Copy link</button>
@@ -188,7 +198,7 @@ function renderQuiz(q, stats) {
         <span>Submitted: <b>${stats.submitted}</b></span>
         <span>Created: <b>${fmtDate(q.created_at).split(',')[0]}</b></span>
       </div>
-      
+
       <div class="quiz-actions">
         <a class="btn small" href="quiz-view.html?id=${q.id}">View results</a>
         <a class="btn ghost small" href="quiz-qr.html?id=${q.id}">🔳 QR</a>
@@ -200,6 +210,37 @@ function renderQuiz(q, stats) {
       </div>
     </div>
   `;
+}
+
+function renderScheduleBadge(q) {
+  const now = Date.now();
+  const open = q.opens_at ? new Date(q.opens_at).getTime() : null;
+  const close = q.expires_at ? new Date(q.expires_at).getTime() : null;
+
+  if (!open && !close) return '';
+
+  let status = '';
+  let bg = '#eef2f7';
+  let color = '#475569';
+
+  if (open && now < open) {
+    status = `Opens ${fmtDate(q.opens_at)}`;
+    bg = '#fef3c7'; color = '#92400e';
+  } else if (close && now > close) {
+    status = `Closed ${fmtDate(q.expires_at)}`;
+    bg = '#fee2e2'; color = '#991b1b';
+  } else if (open && close) {
+    status = `Open until ${fmtDate(q.expires_at)}`;
+    bg = '#dcfce7'; color = '#166534';
+  } else if (open) {
+    status = `Open since ${fmtDate(q.opens_at)}`;
+    bg = '#dcfce7'; color = '#166534';
+  } else if (close) {
+    status = `Closes ${fmtDate(q.expires_at)}`;
+    bg = '#dcfce7'; color = '#166534';
+  }
+
+  return `<div style="font-size:.82rem;padding:6px 10px;border-radius:6px;background:${bg};color:${color};font-weight:600;margin-bottom:10px">🕒 ${status}</div>`;
 }
 
 function attachHandlers() {
@@ -285,6 +326,8 @@ function openModal() {
   $('qShuffleQ').checked = true;
   $('qShuffleC').checked = true;
   $('qShowScore').checked = true;
+  $('qOpens').value = '';
+  $('qExpires').value = '';
   $('quizErr').classList.add('hidden');
   const suggested = generateCode('quiz');
   $('qCode').value = suggested;
@@ -312,6 +355,7 @@ $('formQuiz').addEventListener('submit', async (e) => {
     shuffle_questions: $('qShuffleQ').checked,
     shuffle_choices: $('qShuffleC').checked,
     show_score_at_end: $('qShowScore').checked,
+    opens_at: $('qOpens').value ? new Date($('qOpens').value).toISOString() : null,
     expires_at: $('qExpires').value ? new Date($('qExpires').value).toISOString() : null,
   };
 
@@ -319,6 +363,12 @@ $('formQuiz').addEventListener('submit', async (e) => {
   if (!payload.subject_id) { errEl.textContent = 'Select a subject.'; errEl.classList.remove('hidden'); return; }
   if (!payload.period_id) { errEl.textContent = 'Select a period.'; errEl.classList.remove('hidden'); return; }
   if (!payload.code) { errEl.textContent = 'Enter a share code.'; errEl.classList.remove('hidden'); return; }
+
+  if (payload.opens_at && payload.expires_at && payload.expires_at <= payload.opens_at) {
+    errEl.textContent = 'Close time must be after open time.';
+    errEl.classList.remove('hidden');
+    return;
+  }
 
   const btn = $('btnSaveQuiz');
   btn.disabled = true; btn.textContent = 'Creating…';
