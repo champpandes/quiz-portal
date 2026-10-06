@@ -1,5 +1,5 @@
 /* ============================================================
-   SHARED SUPABASE CLIENT + HELPERS
+   SHARED SUPABASE CLIENT + HELPERS + THEME
    ============================================================ */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -8,7 +8,73 @@ import {
   SESSION_KEY, QUEUE_KEY, CLOSE_FLAG_KEY,
 } from './config.js';
 
-/* ---------- client ---------- */
+/* ============================================================
+   THEME (light / dark)
+   ============================================================ */
+
+const THEME_KEY = 'quiz_theme_v1';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (_) {}
+
+  // default: follow system preference if nothing saved
+  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(theme);
+
+  // inject toggle button when DOM is ready
+  const inject = () => {
+    if (document.querySelector('.theme-toggle')) return;
+
+    // find the topbar (admin) or fall back to floating button (quiz)
+    const topbar = document.querySelector('.topbar');
+    const btn = document.createElement('button');
+    btn.className = 'theme-toggle';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Toggle dark mode');
+    btn.innerHTML = '<span class="moon">🌙</span><span class="sun">☀️</span>';
+
+    btn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+    });
+
+    if (topbar) {
+      // insert before the user menu if possible
+      const user = topbar.querySelector('.user');
+      if (user) topbar.insertBefore(btn, user);
+      else topbar.appendChild(btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inject);
+  } else {
+    inject();
+  }
+
+  // react to system changes only if user hasn't picked a theme
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    let stored = null;
+    try { stored = localStorage.getItem(THEME_KEY); } catch (_) {}
+    if (!stored) applyTheme(e.matches ? 'dark' : 'light');
+  });
+}
+
+initTheme();
+
+/* ============================================================
+   SUPABASE CLIENT
+   ============================================================ */
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
@@ -17,7 +83,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
    STUDENT-SIDE RPCs
    ============================================================ */
 
-/** Begin (or resume) an attempt. Returns the quiz payload. */
 export async function startAttempt(code, studentNumber, studentName) {
   const { data, error } = await supabase.rpc('start_attempt', {
     p_quiz_code:      code,
@@ -28,7 +93,6 @@ export async function startAttempt(code, studentNumber, studentName) {
   return data;
 }
 
-/** Save one answer. */
 export async function saveAnswer(attemptId, attemptAnswerId, choiceId, secondsSpent) {
   const { error } = await supabase.rpc('save_answer', {
     p_attempt_id:         attemptId,
@@ -39,17 +103,15 @@ export async function saveAnswer(attemptId, attemptAnswerId, choiceId, secondsSp
   if (error) throw error;
 }
 
-/** Log an anti-cheat event. Returns the new warning count. */
 export async function logEvent(attemptId, eventType) {
   const { data, error } = await supabase.rpc('log_event', {
     p_attempt_id: attemptId,
     p_event_type: eventType,
   });
   if (error) throw error;
-  return data; // integer
+  return data;
 }
 
-/** Submit and grade. */
 export async function submitAttempt(attemptId, force = false) {
   const { data, error } = await supabase.rpc('submit_attempt', {
     p_attempt_id: attemptId,
@@ -59,7 +121,6 @@ export async function submitAttempt(attemptId, force = false) {
   return data;
 }
 
-/** Mark the attempt abandoned (student closed the tab). */
 export async function abandonAttempt(attemptId) {
   const { error } = await supabase.rpc('abandon_attempt', {
     p_attempt_id: attemptId,
@@ -68,7 +129,7 @@ export async function abandonAttempt(attemptId) {
 }
 
 /* ============================================================
-   AUTH (teacher pages)
+   AUTH
    ============================================================ */
 
 export async function signIn(email, password) {
@@ -91,10 +152,6 @@ export async function getUser() {
   return data.user;
 }
 
-/**
- * Call at the top of every protected admin page.
- * Redirects to the login page if not signed in.
- */
 export async function requireAuth(loginPath = '../admin/index.html') {
   const session = await getSession();
   if (!session) {
@@ -105,7 +162,7 @@ export async function requireAuth(loginPath = '../admin/index.html') {
 }
 
 /* ============================================================
-   LOCAL STORAGE HELPERS (offline safety)
+   LOCAL STORAGE
    ============================================================ */
 
 export function saveSession(obj) {
@@ -169,7 +226,7 @@ export function escapeHtml(str) {
 }
 
 /* ============================================================
-   SMALL UI HELPERS
+   TOAST
    ============================================================ */
 
 export function toast(msg, type = 'info', ms = 3000) {
@@ -178,11 +235,12 @@ export function toast(msg, type = 'info', ms = 3000) {
     el = document.createElement('div');
     el.id = '__toast';
     el.style.cssText = `
-      position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
-      background:#111;color:#fff;padding:12px 18px;border-radius:10px;
+      position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+      background:#111;color:#fff;padding:13px 20px;border-radius:10px;
       font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-      z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;
-      transition:opacity .18s;max-width:90vw;text-align:center;`;
+      font-weight:500;z-index:9999;box-shadow:0 12px 32px rgba(0,0,0,.35);
+      opacity:0;transition:opacity .2s, transform .2s;max-width:90vw;text-align:center;
+      pointer-events:none;`;
     document.body.appendChild(el);
   }
   if (type === 'error') el.style.background = '#b00020';
@@ -190,7 +248,13 @@ export function toast(msg, type = 'info', ms = 3000) {
   else el.style.background = '#111';
 
   el.textContent = msg;
-  el.style.opacity = '1';
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(-50%) translateY(0)';
+  });
   clearTimeout(el.__t);
-  el.__t = setTimeout(() => { el.style.opacity = '0'; }, ms);
+  el.__t = setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(-50%) translateY(20px)';
+  }, ms);
 }
