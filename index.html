@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#2563eb">
 <title>Quiz Platform Champ</title>
 <link rel="icon" type="image/svg+xml" href="./assets/logo-icon.svg">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Quiz Champ">
 <link rel="stylesheet" href="./assets/quiz.css">
 </head>
 <body>
@@ -18,8 +23,51 @@
     <p style="text-align:center;color:#64748b">Loading quiz…</p>
   </section>
 
-  <!-- ENTRY -->
-  <section class="screen active" id="screen-entry">
+  <!-- WELCOME (no code in URL) -->
+  <section class="screen" id="screen-welcome">
+    <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
+      <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
+      <span>Quiz Platform <strong style="color:var(--accent);font-weight:800">Champ</strong></span>
+    </div>
+    <div class="entry-sub">Scan a QR code or enter a quiz code to begin</div>
+
+    <div class="card">
+      <button class="block" id="btnScanQR" style="margin-bottom:14px">
+        📷 Scan QR code
+      </button>
+
+      <div class="welcome-divider">or</div>
+
+      <label class="field">
+        <span>Enter quiz code</span>
+        <input type="text" id="inCode" autocomplete="off"
+               placeholder="e.g. quiz-a3k9m2"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
+      </label>
+      <button class="block ghost" id="btnGoCode">Go to quiz →</button>
+
+      <div id="welcomeErr" class="info-line" style="background:#fee2e2;color:#991b1b;display:none;margin-top:14px"></div>
+    </div>
+
+    <p class="muted" style="text-align:center;font-size:.82rem">
+      Ask your teacher for the code or the QR image.
+    </p>
+  </section>
+
+  <!-- QR SCANNER OVERLAY -->
+  <section class="screen" id="screen-scanner">
+    <div class="scanner-wrap">
+      <div class="scanner-head">
+        <button class="ghost small" id="btnCloseScanner">← Back</button>
+        <span>Point at the QR code</span>
+      </div>
+      <div id="qr-reader"></div>
+      <p class="scanner-hint" id="scannerHint">Hold steady…</p>
+    </div>
+  </section>
+
+  <!-- ENTRY (name + student number) -->
+  <section class="screen" id="screen-entry">
     <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
       <span>Quiz Platform <strong style="color:var(--accent);font-weight:800">Champ</strong></span>
@@ -126,66 +174,197 @@
 </div>
 
 <script type="module">
-  const params = new URLSearchParams(location.search);
-  window.__QUIZ_CODE__ = params.get('q') || '';
+/* ============================================================
+   BOOT ROUTER
+   ============================================================ */
 
-  if (!window.__QUIZ_CODE__) {
-    document.getElementById('screen-entry').classList.remove('active');
-    document.getElementById('errIcon').textContent = '🔍';
-    document.getElementById('errMsg').textContent =
-      'No quiz code found. Please use the link your teacher shared.';
-    document.getElementById('screen-error').classList.add('active');
-  } else {
-    await import('./assets/quiz.js');
+/* register service worker (PWA) */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* silent */ });
+  });
+}
+
+const params = new URLSearchParams(location.search);
+window.__QUIZ_CODE__ = params.get('q') || '';
+
+/* helper: swap the active screen */
+function showScreen(name) {
+  ['loading','welcome','scanner','entry','quiz','review','done','error'].forEach(s => {
+    const el = document.getElementById('screen-' + s);
+    if (el) el.classList.toggle('active', s === name);
+  });
+}
+
+if (!window.__QUIZ_CODE__) {
+  /* ---------- welcome screen: choose a quiz ---------- */
+  showScreen('welcome');
+
+  const inCode = document.getElementById('inCode');
+  const errEl  = document.getElementById('welcomeErr');
+  const hint   = document.getElementById('scannerHint');
+  const qrReader = document.getElementById('qr-reader');
+
+  let scanner = null;
+  let scannerActive = false;
+
+  /* ----- manual code entry ----- */
+  function goToCode(raw) {
+    let code = String(raw || '').trim().toLowerCase();
+    if (!code) return false;
+
+    /* if they pasted a full URL, extract the ?q= */
+    try {
+      if (code.includes('/') || code.includes('?')) {
+        const u = new URL(code, location.origin);
+        const q = u.searchParams.get('q');
+        if (q) code = q.toLowerCase();
+      }
+    } catch (_) { /* ignore */ }
+
+    /* strip a trailing slash */
+    code = code.replace(/\/+$/, '');
+    if (!code) return false;
+
+    location.search = '?q=' + encodeURIComponent(code);
+    return true;
   }
+
+  document.getElementById('btnGoCode').addEventListener('click', () => {
+    if (!goToCode(inCode.value)) {
+      errEl.textContent = 'Enter a quiz code.';
+      errEl.style.display = 'block';
+    }
+  });
+
+  inCode.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btnGoCode').click();
+  });
+  inCode.addEventListener('input', () => { errEl.style.display = 'none'; });
+
+  /* ----- QR scanner ----- */
+  async function loadHtml5Qrcode() {
+    if (window.Html5Qrcode) return window.Html5Qrcode;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Could not load QR scanner. Check your internet.'));
+      document.head.appendChild(s);
+    });
+    return window.Html5Qrcode;
+  }
+
+  async function startScanner() {
+    showScreen('scanner');
+    hint.textContent = 'Starting camera…';
+    hint.style.color = '';
+
+    try {
+      const Html5Qrcode = await loadHtml5Qrcode();
+
+      scanner = new Html5Qrcode('qr-reader');
+      scannerActive = true;
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        },
+        (decoded) => {
+          /* success */
+          stopScanner();
+          if (!goToCode(decoded)) {
+            showScreen('welcome');
+            errEl.textContent = 'That QR code was not a valid quiz code.';
+            errEl.style.display = 'block';
+          }
+        },
+        () => { /* ignore individual frame errors */ }
+      );
+
+      hint.textContent = 'Point at the QR code';
+    } catch (err) {
+      hint.textContent = err.message || 'Could not start the camera.';
+      hint.style.color = '#dc2626';
+      /* offer manual entry fallback after a moment */
+      setTimeout(() => {
+        if (!scannerActive) showScreen('welcome');
+      }, 3000);
+    }
+  }
+
+  async function stopScanner() {
+    if (scanner && scannerActive) {
+      try { await scanner.stop(); } catch (_) {}
+      try { scanner.clear(); } catch (_) {}
+    }
+    scanner = null;
+    scannerActive = false;
+  }
+
+  document.getElementById('btnScanQR').addEventListener('click', startScanner);
+  document.getElementById('btnCloseScanner').addEventListener('click', async () => {
+    await stopScanner();
+    showScreen('welcome');
+  });
+
+} else {
+  /* ---------- quiz code is present: run the quiz ---------- */
+  showScreen('entry');
+  await import('./assets/quiz.js');
+}
 </script>
 
 <script type="module">
-  const errEl    = document.getElementById('entryErr');
-  const inName   = document.getElementById('inName');
-  const inNum    = document.getElementById('inStudentNo');
-  const btnStart = document.getElementById('btnStart');
+/* ---------- Entry form validation (name format) ---------- */
+const errEl    = document.getElementById('entryErr');
+const inName   = document.getElementById('inName');
+const inNum    = document.getElementById('inStudentNo');
+const btnStart = document.getElementById('btnStart');
 
-  function showEntryError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
-  function hideEntryError() { errEl.style.display = 'none'; }
+function showEntryError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+function hideEntryError() { errEl.style.display = 'none'; }
 
-  inName.addEventListener('input', hideEntryError);
-  inNum.addEventListener('input', hideEntryError);
+inName.addEventListener('input', hideEntryError);
+inNum.addEventListener('input', hideEntryError);
 
-  btnStart.addEventListener('click', (e) => {
-    const num  = inNum.value.trim();
-    const name = inName.value.trim();
+btnStart.addEventListener('click', (e) => {
+  const num  = inNum.value.trim();
+  const name = inName.value.trim();
 
-    if (!num) {
+  if (!num) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    showEntryError('Enter your student number.');
+    return;
+  }
+  if (!name) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    showEntryError('Enter your full name.');
+    return;
+  }
+
+  if (!name.includes(',')) {
+    const proceed = window.confirm(
+      'The expected format is:\n\n' +
+      '    Last Name, First Name M.I. Suffix\n\n' +
+      'Example:  Dela Cruz, Juan P. Jr.\n\n' +
+      'Your name is:  "' + name + '"\n\n' +
+      'Is this correct?\n\n' +
+      'OK = continue with this name\n' +
+      'Cancel = go back and edit it'
+    );
+    if (!proceed) {
       e.preventDefault(); e.stopImmediatePropagation();
-      showEntryError('Enter your student number.');
+      inName.focus(); inName.select();
       return;
     }
-    if (!name) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      showEntryError('Enter your full name.');
-      return;
-    }
+  }
 
-    if (!name.includes(',')) {
-      const proceed = window.confirm(
-        'The expected format is:\n\n' +
-        '    Last Name, First Name M.I. Suffix\n\n' +
-        'Example:  Dela Cruz, Juan P. Jr.\n\n' +
-        'Your name is:  "' + name + '"\n\n' +
-        'Is this correct?\n\n' +
-        'OK = continue with this name\n' +
-        'Cancel = go back and edit it'
-      );
-      if (!proceed) {
-        e.preventDefault(); e.stopImmediatePropagation();
-        inName.focus(); inName.select();
-        return;
-      }
-    }
-
-    hideEntryError();
-  }, true);
+  hideEntryError();
+}, true);
 </script>
 
 </body>

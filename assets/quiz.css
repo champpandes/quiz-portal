@@ -496,3 +496,98 @@ button.small { padding: 7px 14px; font-size: .82rem; border-radius: 10px; }
   .modal { padding: 26px 22px; }
   .review-item { padding: 12px; }
 }
+
+/* ============================================================
+   WELCOME SCREEN + QR SCANNER
+   ============================================================ */
+
+.welcome-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-subtle);
+  font-size: .82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 20px 0 18px;
+}
+.welcome-divider::before,
+.welcome-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- scanner overlay ---------- */
+#screen-scanner.active {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0;
+}
+
+.scanner-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0b1220;
+  color: #f1f5f9;
+  min-height: 100vh;
+}
+
+.scanner-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(0,0,0,.4);
+  font-weight: 600;
+  font-size: .95rem;
+}
+.scanner-head button {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  border: 0;
+  box-shadow: none;
+}
+.scanner-head button:hover {
+  background: rgba(255,255,255,.25);
+  box-shadow: none;
+}
+
+#qr-reader {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#qr-reader video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+#qr-reader__scan_region {
+  border-radius: 20px;
+  overflow: hidden;
+}
+#qr-reader__dashboard_section_csr button {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin: 4px;
+}
+
+.scanner-hint {
+  text-align: center;
+  font-size: .9rem;
+  color: #94a3b8;
+  padding: 16px;
+  margin: 0;
+}
