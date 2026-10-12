@@ -4,7 +4,7 @@
    Never caches Supabase API calls.
    ============================================================ */
 
-const CACHE_VERSION = 'quiz-champ-v1';
+const CACHE_VERSION = 'quiz-champ-v2';
 
 const SHELL = [
   './',
