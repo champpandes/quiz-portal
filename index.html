@@ -26,7 +26,6 @@
   <!-- WELCOME -->
   <section class="screen" id="screen-welcome">
 
-    <!-- install banner (hidden by default) -->
     <div class="install-banner hidden" id="installBanner">
       <div class="install-icon">📲</div>
       <div class="install-info">
@@ -70,7 +69,7 @@
     </p>
   </section>
 
-  <!-- QR SCANNER / DECODER -->
+  <!-- QR SCANNER -->
   <section class="screen" id="screen-scanner">
     <div class="scanner-wrap">
       <div class="scanner-head">
@@ -154,6 +153,7 @@
       <div class="done-icon" id="doneIcon">✅</div>
       <div class="done-title" id="doneTitle">Submitted</div>
       <p class="muted" style="text-align:center" id="doneSub">Your answers have been sent to your teacher.</p>
+
       <div class="score-big" id="doneScore">—</div>
       <div class="score-sub" id="donePercent">—</div>
       <div class="info-line" id="doneTime">Time used: —</div>
@@ -201,9 +201,7 @@
 /* ============================================================
    PWA INSTALL BANNER
    ============================================================ */
-
 let deferredInstallPrompt = null;
-
 const installBanner = document.getElementById('installBanner');
 const installDesc   = document.getElementById('installDesc');
 
@@ -211,21 +209,18 @@ function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches ||
          window.navigator.standalone === true;
 }
-
 function wasDismissedRecently() {
   try {
     const d = localStorage.getItem('pwa_install_dismissed');
     if (!d) return false;
-    return Date.now() - parseInt(d, 10) < 7 * 24 * 3600 * 1000; // 7 days
+    return Date.now() - parseInt(d, 10) < 7 * 24 * 3600 * 1000;
   } catch (_) { return false; }
 }
-
 function showInstallBanner() {
   if (isStandalone()) return;
   if (wasDismissedRecently()) return;
   if (!installBanner) return;
 
-  /* iOS Safari never fires beforeinstallprompt — show manual instructions */
   const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   if (isiOS) {
     installDesc.textContent = 'Tap Share → Add to Home Screen';
@@ -233,8 +228,6 @@ function showInstallBanner() {
     document.getElementById('btnInstall').style.display = 'none';
     return;
   }
-
-  /* Android/desktop Chrome: only show when install is possible */
   if (deferredInstallPrompt) {
     installDesc.textContent = 'Add to your home screen';
     installBanner.classList.remove('hidden');
@@ -246,7 +239,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   deferredInstallPrompt = e;
   showInstallBanner();
 });
-
 window.addEventListener('appinstalled', () => {
   installBanner.classList.add('hidden');
   deferredInstallPrompt = null;
@@ -258,19 +250,15 @@ document.getElementById('btnInstall').addEventListener('click', async () => {
   deferredInstallPrompt.prompt();
   try {
     const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === 'accepted') {
-      installBanner.classList.add('hidden');
-    }
+    if (outcome === 'accepted') installBanner.classList.add('hidden');
   } catch (_) {}
   deferredInstallPrompt = null;
 });
-
 document.getElementById('btnDismissInstall').addEventListener('click', () => {
   installBanner.classList.add('hidden');
   try { localStorage.setItem('pwa_install_dismissed', String(Date.now())); } catch (_) {}
 });
 
-/* show the iOS instructions even without beforeinstallprompt */
 if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandalone() && !wasDismissedRecently()) {
   showInstallBanner();
 }
@@ -298,7 +286,6 @@ function showScreen(name) {
 }
 
 if (!window.__QUIZ_CODE__) {
-
   showScreen('welcome');
 
   const inCode  = document.getElementById('inCode');
@@ -312,7 +299,6 @@ if (!window.__QUIZ_CODE__) {
   function goToCode(raw) {
     let code = String(raw || '').trim().toLowerCase();
     if (!code) return false;
-
     try {
       if (code.includes('/') || code.includes('?')) {
         const u = new URL(code, location.origin);
@@ -320,10 +306,8 @@ if (!window.__QUIZ_CODE__) {
         if (q) code = q.toLowerCase();
       }
     } catch (_) {}
-
     code = code.replace(/\/+$/, '');
     if (!code) return false;
-
     location.search = '?q=' + encodeURIComponent(code);
     return true;
   }
@@ -334,7 +318,6 @@ if (!window.__QUIZ_CODE__) {
       errEl.style.display = 'block';
     }
   });
-
   inCode.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('btnGoCode').click();
   });
@@ -357,13 +340,10 @@ if (!window.__QUIZ_CODE__) {
     showScreen('scanner');
     hint.textContent = 'Starting camera…';
     hint.style.color = '';
-
     try {
       const Html5Qrcode = await loadHtml5Qrcode();
-
       scanner = new Html5Qrcode('qr-reader');
       scannerActive = true;
-
       await scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
@@ -377,7 +357,6 @@ if (!window.__QUIZ_CODE__) {
         },
         () => {}
       );
-
       hint.textContent = 'Point at the QR code';
     } catch (err) {
       hint.textContent = err.message || 'Could not start the camera.';
@@ -408,14 +387,12 @@ if (!window.__QUIZ_CODE__) {
     input.style.position = 'fixed';
     input.style.left = '-9999px';
     document.body.appendChild(input);
-
     input.onchange = async (e) => {
       const file = e.target.files && e.target.files[0];
       document.body.removeChild(input);
       if (!file) return;
       await decodeQRFile(file);
     };
-
     input.click();
   }
 
@@ -424,13 +401,10 @@ if (!window.__QUIZ_CODE__) {
     hint.textContent = 'Decoding…';
     hint.style.color = '';
     showScreen('scanner');
-
     const readerEl = document.getElementById('qr-reader');
     readerEl.innerHTML = '';
-
     try {
       const Html5Qrcode = await loadHtml5Qrcode();
-
       const tempId = 'qr-reader-temp';
       let temp = document.getElementById(tempId);
       if (!temp) {
@@ -439,9 +413,7 @@ if (!window.__QUIZ_CODE__) {
         temp.style.cssText = 'position:absolute;left:-9999px;top:0;width:300px;height:300px;';
         document.body.appendChild(temp);
       }
-
       const helper = new Html5Qrcode(tempId, { verbose: false });
-
       let decoded = null;
       try {
         decoded = await helper.scanFile(file, false);
@@ -449,9 +421,7 @@ if (!window.__QUIZ_CODE__) {
         try { helper.clear(); } catch (_) {}
         try { temp.remove(); } catch (_) {}
       }
-
       if (!decoded) throw new Error('No QR code found in that image.');
-
       hint.textContent = 'QR found!';
       if (!goToCode(decoded)) {
         showScreen('welcome');

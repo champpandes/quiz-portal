@@ -557,10 +557,8 @@ $('btnWarnOk').addEventListener('click', async () => {
   const btnHome = $('btnDoneHome');
   if (btnHome) {
     btnHome.addEventListener('click', () => {
-      wipeStudent();
-      // URL is already stripped of ?q= in doSubmit, so force a full reload
-      // (setting location.href to the same URL is a no-op in browsers)
-      location.reload();
+      // hard navigation to the app root — no query, no cache, full reset
+      window.location.href = window.location.href.split('?')[0].split('#')[0];
     });
   }
 
