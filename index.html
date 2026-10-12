@@ -25,6 +25,18 @@
 
   <!-- WELCOME -->
   <section class="screen" id="screen-welcome">
+
+    <!-- install banner (hidden by default) -->
+    <div class="install-banner hidden" id="installBanner">
+      <div class="install-icon">📲</div>
+      <div class="install-info">
+        <div class="install-title">Install Quiz Champ</div>
+        <div class="install-desc" id="installDesc">Add to your home screen</div>
+      </div>
+      <button class="install-btn" id="btnInstall">Install</button>
+      <button class="install-close" id="btnDismissInstall" aria-label="Dismiss">✕</button>
+    </div>
+
     <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
       <span>Quiz Platform <strong style="color:var(--accent);font-weight:800">Champ</strong></span>
@@ -178,13 +190,95 @@
 </div>
 
 <script type="module">
-/* register service worker (PWA) */
+/* ============================================================
+   PWA INSTALL BANNER
+   ============================================================ */
+
+let deferredInstallPrompt = null;
+
+const installBanner = document.getElementById('installBanner');
+const installDesc   = document.getElementById('installDesc');
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+
+function wasDismissedRecently() {
+  try {
+    const d = localStorage.getItem('pwa_install_dismissed');
+    if (!d) return false;
+    return Date.now() - parseInt(d, 10) < 7 * 24 * 3600 * 1000; // 7 days
+  } catch (_) { return false; }
+}
+
+function showInstallBanner() {
+  if (isStandalone()) return;
+  if (wasDismissedRecently()) return;
+  if (!installBanner) return;
+
+  /* iOS Safari never fires beforeinstallprompt — show manual instructions */
+  const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isiOS) {
+    installDesc.textContent = 'Tap Share → Add to Home Screen';
+    installBanner.classList.remove('hidden');
+    document.getElementById('btnInstall').style.display = 'none';
+    return;
+  }
+
+  /* Android/desktop Chrome: only show when install is possible */
+  if (deferredInstallPrompt) {
+    installDesc.textContent = 'Add to your home screen';
+    installBanner.classList.remove('hidden');
+  }
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.classList.add('hidden');
+  deferredInstallPrompt = null;
+  try { localStorage.setItem('pwa_install_dismissed', String(Date.now())); } catch (_) {}
+});
+
+document.getElementById('btnInstall').addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  try {
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installBanner.classList.add('hidden');
+    }
+  } catch (_) {}
+  deferredInstallPrompt = null;
+});
+
+document.getElementById('btnDismissInstall').addEventListener('click', () => {
+  installBanner.classList.add('hidden');
+  try { localStorage.setItem('pwa_install_dismissed', String(Date.now())); } catch (_) {}
+});
+
+/* show the iOS instructions even without beforeinstallprompt */
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandalone() && !wasDismissedRecently()) {
+  showInstallBanner();
+}
+
+/* ============================================================
+   SERVICE WORKER
+   ============================================================ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
 
+/* ============================================================
+   ROUTER
+   ============================================================ */
 const params = new URLSearchParams(location.search);
 window.__QUIZ_CODE__ = params.get('q') || '';
 
@@ -207,7 +301,6 @@ if (!window.__QUIZ_CODE__) {
   let scanner = null;
   let scannerActive = false;
 
-  /* ---------- go to a quiz by code ---------- */
   function goToCode(raw) {
     let code = String(raw || '').trim().toLowerCase();
     if (!code) return false;
@@ -239,7 +332,6 @@ if (!window.__QUIZ_CODE__) {
   });
   inCode.addEventListener('input', () => { errEl.style.display = 'none'; });
 
-  /* ---------- load the QR library on demand ---------- */
   async function loadHtml5Qrcode() {
     if (window.Html5Qrcode) return window.Html5Qrcode;
     await new Promise((resolve, reject) => {
@@ -252,7 +344,6 @@ if (!window.__QUIZ_CODE__) {
     return window.Html5Qrcode;
   }
 
-  /* ---------- camera scan ---------- */
   async function startScanner() {
     sTitle.textContent = 'Point at the QR code';
     showScreen('scanner');
@@ -302,7 +393,6 @@ if (!window.__QUIZ_CODE__) {
     showScreen('welcome');
   });
 
-  /* ---------- upload QR image ---------- */
   function pickQRFile() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -333,7 +423,6 @@ if (!window.__QUIZ_CODE__) {
     try {
       const Html5Qrcode = await loadHtml5Qrcode();
 
-      /* container must be visible (not display:none) for the library to work */
       const tempId = 'qr-reader-temp';
       let temp = document.getElementById(tempId);
       if (!temp) {
@@ -347,7 +436,7 @@ if (!window.__QUIZ_CODE__) {
 
       let decoded = null;
       try {
-        decoded = await helper.scanFile(file, /* showImage= */ false);
+        decoded = await helper.scanFile(file, false);
       } finally {
         try { helper.clear(); } catch (_) {}
         try { temp.remove(); } catch (_) {}
