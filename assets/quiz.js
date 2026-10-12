@@ -25,7 +25,6 @@ function showScreen(name) {
     const el = $('screen-' + s);
     if (el) el.classList.toggle('active', s === name);
   });
-  // bottom bar visible on both quiz and review
   const showBar = (name === 'quiz' || name === 'review');
   $('bottomBar').classList.toggle('hidden', !showBar);
 }
@@ -52,7 +51,7 @@ function consumeCloseFlag() {
   } catch (_) { return null; }
 }
 
-/* ---------- persistence ---------- */
+/* ---------- persistence (during quiz only) ---------- */
 function saveLocal() {
   if (!state) return;
   try {
@@ -69,8 +68,33 @@ function loadLocal() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
   catch (_) { return null; }
 }
-function clearLocal() {
-  try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+
+/* ============================================================
+   WIPE — removes every trace of the student
+   Called after submit. Also clears the URL query string.
+   ============================================================ */
+function wipeStudent() {
+  // 1. memory: null out selections
+  if (state && Array.isArray(state.questions)) {
+    state.questions.forEach(q => {
+      q.selectedChoiceId = null;
+      q.secondsSpent = 0;
+    });
+  }
+  state = null;
+
+  // 2. storage: every key we ever wrote
+  try {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(CLOSE_FLAG_KEY);
+    localStorage.removeItem('quiz_last_student');
+  } catch (_) {}
+
+  // 3. DOM inputs (in case they're still in the tree)
+  ['inName', 'inStudentNo', 'inCode'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 }
 
 /* ============================================================
@@ -87,7 +111,7 @@ async function beginQuiz(code, studentNumber, studentName) {
       showScore:        data.show_score_at_end,
       totalQuestions:   data.total_questions,
       current:          0,
-      mode:             'quiz',           // 'quiz' | 'review'
+      mode:             'quiz',
       editingFromReview: false,
       warningCount:     0,
       startedAt:        Date.now(),
@@ -106,10 +130,9 @@ async function beginQuiz(code, studentNumber, studentName) {
       return;
     }
 
-    $('quizTitle').textContent  = state.quizTitle;
+    $('quizTitle').textContent   = state.quizTitle;
     $('reviewTitle').textContent = state.quizTitle;
 
-    /* restore saved progress if this attempt is the same one */
     const saved = loadLocal();
     if (saved && saved.attemptId === data.attempt_id) {
       state.current = Math.min(
@@ -121,7 +144,6 @@ async function beginQuiz(code, studentNumber, studentName) {
       if (saved.startedAt) state.startedAt = saved.startedAt;
     }
 
-    /* tab-close warning */
     const priorClose = consumeCloseFlag();
     if (priorClose) {
       try {
@@ -250,7 +272,6 @@ function renderReview() {
     });
   });
 
-  // count unanswered for the summary
   const unanswered = state.questions.filter(q => !q.selectedChoiceId).length;
   const summary = unanswered > 0
     ? `<div class="review-summary warn">
@@ -261,7 +282,6 @@ function renderReview() {
          All questions answered. Ready to submit!
        </div>`;
 
-  // put summary above the list
   const existing = list.parentElement.querySelector('.review-summary');
   if (existing) existing.remove();
   list.insertAdjacentHTML('beforebegin', summary);
@@ -346,7 +366,6 @@ async function pickChoice(choiceId) {
    NEXT / SUBMIT
    ============================================================ */
 async function handleNext() {
-  // in review mode → submit
   if (state.mode === 'review') {
     const unanswered = state.questions.filter(q => !q.selectedChoiceId).length;
     if (unanswered > 0) {
@@ -360,7 +379,6 @@ async function handleNext() {
     return;
   }
 
-  // in quiz mode → save & move
   const q = state.questions[state.current];
   if (!q.selectedChoiceId) return;
 
@@ -394,19 +412,34 @@ async function doSubmit(forced) {
 
   try {
     const res = await submitAttempt(state.attemptId, forced);
-    clearLocal();
-    showDone(res, forced);
+
+    // capture everything the done screen needs, before wiping
+    const info = {
+      score:     res.score,
+      total:     res.total,
+      percent:   res.percent,
+      showScore: state.showScore,
+      elapsed:   Math.floor((Date.now() - state.startedAt) / 1000),
+      forced:    !!forced,
+    };
+
+    // remove ?q= so a refresh on the done screen goes to the welcome page
+    try { history.replaceState({}, '', location.pathname); } catch (_) {}
+
+    // wipe every trace of the student (memory, storage, inputs)
+    wipeStudent();
+
+    showDone(info);
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = state.mode === 'review' ? 'Submit quiz' : 'Next';
+    btn.textContent = state?.mode === 'review' ? 'Submit quiz' : 'Next';
     submitting = false;
     alert('Could not submit: ' + err.message + '\n\nPlease try again or tell your teacher.');
   }
 }
 
-function showDone(res, forced) {
-  const { score, total, percent } = res;
-  const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+function showDone(info) {
+  const { score, total, percent, showScore, elapsed, forced } = info;
 
   $('doneIcon').textContent = forced ? '⚠️' : '✅';
   $('doneTitle').textContent = forced ? 'Quiz Submitted' : 'Submitted Successfully';
@@ -414,7 +447,7 @@ function showDone(res, forced) {
     ? 'Your quiz was submitted automatically because of repeated warnings.'
     : 'Your answers have been sent to your teacher.';
 
-  if (state.showScore && score != null) {
+  if (showScore && score != null) {
     $('doneScore').style.display = 'block';
     $('doneScore').textContent = `${score} / ${total}`;
     $('donePercent').textContent = `${percent}%`;
@@ -512,19 +545,22 @@ $('btnWarnOk').addEventListener('click', async () => {
     const name = $('inName').value.trim();
     if (!num) { $('entryErr').textContent = 'Enter your student number.'; $('entryErr').classList.remove('hidden'); return; }
     if (!name) { $('entryErr').textContent = 'Enter your full name.'; $('entryErr').classList.remove('hidden'); return; }
-    try { localStorage.setItem('quiz_last_student', num); } catch (_) {}
     beginQuiz(window.__QUIZ_CODE__, num, name);
   });
-
-  try {
-    const last = localStorage.getItem('quiz_last_student');
-    if (last) $('inStudentNo').value = last;
-  } catch (_) {}
 
   $('inName').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnStart').click(); });
   $('inStudentNo').addEventListener('keydown', e => { if (e.key === 'Enter') $('inName').focus(); });
 
   $('btnNext').addEventListener('click', handleNext);
+
+  // Home button on the done screen
+  const btnHome = $('btnDoneHome');
+  if (btnHome) {
+    btnHome.addEventListener('click', () => {
+      wipeStudent();                 // in case anything survived
+      location.href = location.pathname; // navigate to index.html (no query)
+    });
+  }
 
   $('entryErr').classList.add('hidden');
 })();
