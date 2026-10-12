@@ -163,22 +163,64 @@ export async function updateTopic(id, name) {
 }
 
 export async function deleteTopic(id) {
-  // questions referencing this topic have topic_id set to NULL (on delete set null)
   const { error } = await supabase.from('topics').delete().eq('id', id);
   if (error) throw error;
 }
 
-/* ---------- bulk insert (topics not supported yet) ---------- */
+/* ---------- bulk insert (with auto-topic creation) ---------- */
 export async function bulkInsert(periodId, rows) {
   if (!rows.length) return 0;
 
-  const qRows = rows.map(r => ({ period_id: periodId, text: r.text }));
+  /* 1. collect unique topic names from the rows */
+  const uniqueNames = new Set();
+  rows.forEach(r => {
+    const name = (r.topic || '').trim();
+    if (name) uniqueNames.add(name);
+  });
+
+  /* 2. look up existing topics for this period */
+  const { data: existing, error: fetchErr } = await supabase
+    .from('topics')
+    .select('id, name')
+    .eq('period_id', periodId);
+  if (fetchErr) throw fetchErr;
+
+  const topicMap = {}; // lowercase name -> id
+  (existing || []).forEach(t => {
+    topicMap[t.name.toLowerCase()] = t.id;
+  });
+
+  /* 3. create any missing topics */
+  for (const name of uniqueNames) {
+    const key = name.toLowerCase();
+    if (!topicMap[key]) {
+      const { data, error } = await supabase
+        .from('topics')
+        .insert({ period_id: periodId, name })
+        .select()
+        .single();
+      if (error) throw error;
+      topicMap[key] = data.id;
+    }
+  }
+
+  /* 4. insert questions with topic_id */
+  const qRows = rows.map(r => {
+    const name = (r.topic || '').trim();
+    return {
+      period_id: periodId,
+      text: r.text,
+      topic_id: name ? topicMap[name.toLowerCase()] : null,
+    };
+  });
+
   const { data: inserted, error: qErr } = await supabase
     .from('questions')
     .insert(qRows)
     .select('id');
   if (qErr) throw qErr;
 
+  /* 5. insert choices */
   const cRows = [];
   inserted.forEach((q, i) => {
     rows[i].choices.forEach((c, j) => {
@@ -199,7 +241,7 @@ export async function bulkInsert(periodId, rows) {
   return inserted.length;
 }
 
-/* ---------- bulk text parser ---------- */
+/* ---------- bulk text parser (with topic column) ---------- */
 export function parseBulkText(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (!lines.length) throw new Error('No data to parse.');
@@ -207,18 +249,32 @@ export function parseBulkText(text) {
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
   const rawRows = lines.map(l => splitLine(l, delimiter));
 
+  /* ---- detect header + optional topic column ---- */
   let start = 0;
-  const first = rawRows[0].map(c => c.toLowerCase());
-  if (first[0].includes('question') || first.some(c => c === 'correct' || c === 'answer')) {
+  let topicIdx = -1;
+
+  const firstRow = rawRows[0].map(c => c.toLowerCase().trim());
+  const isHeader = firstRow[0].includes('question') ||
+                   firstRow.some(c => c === 'correct' || c === 'answer' || c === 'topic');
+
+  if (isHeader) {
     start = 1;
+    topicIdx = firstRow.findIndex(c => c === 'topic');
   }
 
   const parsed = [];
   const errors = [];
 
   for (let i = start; i < rawRows.length; i++) {
-    const cells = rawRows[i].map(c => c.trim());
+    let cells = rawRows[i].map(c => c.trim());
     const lineNo = i + 1;
+
+    /* ---- extract topic if we detected the column ---- */
+    let topicName = null;
+    if (topicIdx >= 0) {
+      topicName = cells[topicIdx] || null;
+      cells = cells.filter((_, idx) => idx !== topicIdx);
+    }
 
     if (cells.length < 3) {
       errors.push(`Line ${lineNo}: needs a question, at least 2 choices, and a correct answer.`);
@@ -243,6 +299,7 @@ export function parseBulkText(text) {
 
     parsed.push({
       text: qText,
+      topic: topicName ? topicName.trim() : null,
       choices: choiceTexts.map((t, j) => ({ text: t, is_correct: j === idx })),
     });
   }

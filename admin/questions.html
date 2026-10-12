@@ -274,12 +274,14 @@
         Paste rows below. Use <strong>tab</strong> or <strong>comma</strong> to separate columns.
         First row can be a header (optional). Last column is the correct answer.
       </p>
-      <div class="bulk-help">question,choiceA,choiceB,choiceC,choiceD,correct
-What is 2+2?,3,4,5,6,B
-Capital of France?,Paris,London,Rome,Madrid,A</div>
+      <div class="bulk-help">question,choiceA,choiceB,choiceC,choiceD,correct,topic
+What is 2+2?,3,4,5,6,B,Addition
+Capital of France?,Paris,London,Rome,Madrid,A,Geography
+Angles in a triangle?,90,180,270,360,B,Geometry</div>
       <p style="color:var(--text-muted);font-size:.85rem">
         <strong>Tip:</strong> copy from Excel or Google Sheets to avoid comma issues.<br>
-        Correct answer can be a letter (<code>A</code>–<code>F</code>), a number (<code>1</code>–<code>6</code>), or the exact text.
+        Correct answer can be a letter (<code>A</code>–<code>F</code>), a number (<code>1</code>–<code>6</code>), or the exact text.<br>
+        <strong>Topic column is optional</strong> — include it and topics will be created automatically if they don't exist.
       </p>
       <label class="field">
         <span>Paste here</span>
@@ -886,6 +888,12 @@ function renderPreview() {
         <span>Question ${qi + 1}</span>
         <button type="button" class="ghost small" data-remove-q="${qi}">Remove question</button>
       </div>
+      <input type="text"
+             value="${escapeHtml(q.topic || '')}"
+             data-q-topic="${qi}"
+             placeholder="Topic (optional)"
+             maxlength="80"
+             style="width:100%;font-size:.85rem;padding:7px 11px;margin-bottom:8px;border-radius:6px">
       <textarea data-q-text="${qi}" maxlength="1000" placeholder="Question text">${escapeHtml(q.text)}</textarea>
       <div>
         ${q.choices.map((c, ci) => `
@@ -912,8 +920,13 @@ function renderPreview() {
 
 $('previewList').addEventListener('input', (e) => {
   const t = e.target;
+
   const qIdx = t.dataset.qText;
   if (qIdx !== undefined) { previewQuestions[parseInt(qIdx, 10)].text = t.value; return; }
+
+  const tIdx = t.dataset.qTopic;
+  if (tIdx !== undefined) { previewQuestions[parseInt(tIdx, 10)].topic = t.value; return; }
+
   const cIdx = t.dataset.choiceText;
   if (cIdx !== undefined) {
     const [q, c] = cIdx.split(':').map(Number);
