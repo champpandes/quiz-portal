@@ -7,29 +7,38 @@
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
 <style>
-  .subject-card{background:#fff;border-radius:10px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
-  .subject-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .subject-head h2{margin:0;font-size:1.1rem}
-  .period-list{list-style:none;padding:0;margin:0 0 12px}
-  .period-list li{display:flex;align-items:center;justify-content:space-between;
-    padding:8px 12px;background:#f7f9fc;border-radius:8px;margin-bottom:6px;font-size:.95rem}
+  .subject-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-xs);padding:20px;margin-bottom:14px;transition:border-color .15s, box-shadow .15s}
+  .subject-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm)}
+  .subject-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .subject-head h2{margin:0;font-size:1.1rem;letter-spacing:-0.01em}
+  .period-list{list-style:none;padding:0;margin:0 0 12px;display:flex;flex-wrap:wrap;gap:6px}
+  .period-list li{display:flex;align-items:center;gap:6px;
+    padding:6px 10px 6px 14px;background:var(--card-hover);border:1px solid var(--border);
+    border-radius:99px;font-size:.88rem;font-weight:500;transition:background .12s}
+  .period-list li:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .period-list li .p-name{color:var(--text)}
+  .period-list li .p-del{background:transparent;border:0;color:var(--text-muted);
+    cursor:pointer;font-size:.85rem;padding:0 4px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+    box-shadow:none;font-family:inherit}
+  .period-list li .p-del:hover{background:var(--danger-soft);color:var(--danger);box-shadow:none}
+  .period-empty{color:var(--text-muted);font-size:.85rem;margin:0 0 12px;padding:0;font-style:italic}
   .inline-form{display:flex;gap:8px}
   .inline-form input{flex:1}
-  .empty{color:var(--muted);font-size:.9rem;padding:6px 0}
+  .empty{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-xs);padding:50px 20px;text-align:center;color:var(--text-muted)}
 </style>
 </head>
 <body>
 
 <header class="topbar">
-<div class="brand">
-  <img src="../assets/logo-icon.svg" alt="" width="26" height="26">
-  <span>Quiz Platform <strong>Champ</strong></span>
-</div>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="subjects.html" class="active">Subjects</a>
     <a href="questions.html">Questions</a>
     <a href="quizzes.html">Quizzes</a>
+    <a href="settings.html">Settings</a>
   </nav>
   <div class="user">
     <span class="email" id="userEmail"></span>
@@ -39,7 +48,7 @@
 
 <main class="container">
   <h1>Subjects</h1>
-  <p style="color:var(--muted);margin-top:-6px">Organize your subjects and their quarters or periods.</p>
+  <p style="color:var(--text-muted);margin-top:-6px">Organize your subjects and their quarters or periods.</p>
 
   <div class="card">
     <h2>Create a subject</h2>
@@ -68,14 +77,14 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
 const listEl = document.getElementById('subjectsList');
 
 async function refresh() {
-  listEl.innerHTML = '<div class="card"><p class="empty">Loading…</p></div>';
+  listEl.innerHTML = '<div class="card"><p style="color:var(--text-muted)">Loading…</p></div>';
   try { render(await listSubjects()); }
   catch (err) { listEl.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`; }
 }
 
 function render(subjects) {
   if (!subjects.length) {
-    listEl.innerHTML = '<div class="card"><p class="empty">No subjects yet. Create one above.</p></div>';
+    listEl.innerHTML = '<div class="empty">No subjects yet. Create one above.</div>';
     return;
   }
   listEl.innerHTML = subjects.map(s => {
@@ -86,17 +95,17 @@ function render(subjects) {
           <h2>${escapeHtml(s.name)}</h2>
           <button class="danger small" data-action="del-subject" data-id="${s.id}">Delete subject</button>
         </div>
-        <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">Periods</div>
+        <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Periods</div>
         ${periods.length ? `
           <ul class="period-list">
             ${periods.map(p => `
               <li>
-                <span>${escapeHtml(p.name)}</span>
-                <button class="ghost small" data-action="del-period" data-id="${p.id}">✕</button>
+                <span class="p-name">${escapeHtml(p.name)}</span>
+                <button class="p-del" data-action="del-period" data-id="${p.id}" aria-label="Delete period">✕</button>
               </li>
             `).join('')}
           </ul>
-        ` : '<p class="empty">No periods yet.</p>'}
+        ` : '<p class="period-empty">No periods yet.</p>'}
         <form class="inline-form" data-action="add-period" data-subject="${s.id}">
           <input type="text" placeholder="Add a period (e.g. 1st Quarter)" maxlength="80" required>
           <button type="submit" class="small">Add</button>
