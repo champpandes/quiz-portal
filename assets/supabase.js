@@ -438,3 +438,10 @@ export function toast(msg, type = 'info', ms = 3000) {
     el.style.transform = 'translateX(-50%) translateY(20px)';
   }, ms);
 }
+
+/* ============================================================
+   AUTO-LOAD ONBOARDING TOUR on admin pages
+   ============================================================ */
+if (typeof document !== 'undefined' && document.querySelector('.sidebar, .topbar')) {
+  import('./admin/tour.js').catch(() => {});
+}

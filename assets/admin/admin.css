@@ -560,3 +560,107 @@ textarea { min-height: 90px; resize: vertical; }
 .card, .tile, .quiz-card, .q-item {
   animation: fadeInUp .25s ease-out both;
 }
+
+/* ============================================================
+   ONBOARDING TOUR
+   ============================================================ */
+
+.qp-tour-overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 9998;
+  cursor: pointer;
+  animation: qp-fade .25s ease-out;
+}
+
+@keyframes qp-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.qp-tour-spot {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 9999px rgba(15,23,42,.68),
+    0 0 0 3px var(--primary),
+    0 0 24px 6px rgba(37,99,235,.5);
+  z-index: 9999;
+  pointer-events: none;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+.qp-tour-tip {
+  position: fixed;
+  z-index: 10000;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  padding: 20px 22px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--border);
+  animation: qp-pop .35s cubic-bezier(.34,1.56,.64,1);
+}
+
+@keyframes qp-pop {
+  from { opacity: 0; transform: translateY(10px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.qp-tour-tip h3 {
+  font-size: 1.05rem;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.qp-tour-tip p {
+  font-size: .9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.qp-tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qp-tour-progress {
+  font-size: .78rem;
+  color: var(--text-subtle);
+  font-weight: 600;
+  flex: 1;
+}
+
+.qp-tour-skip {
+  background: transparent;
+  color: var(--text-muted);
+  border: 0;
+  padding: 8px 12px;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  font-family: inherit;
+  border-radius: 8px;
+}
+.qp-tour-skip:hover {
+  background: var(--card-hover);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.qp-tour-next {
+  background: var(--primary);
+  color: #fff;
+  border: 0;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(37,99,235,.3);
+}
+.qp-tour-next:hover { background: var(--primary-h); }
