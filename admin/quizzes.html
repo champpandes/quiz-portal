@@ -19,17 +19,34 @@
   .badge.active{background:#dcfce7;color:#166534}
   .badge.inactive{background:#fee2e2;color:#991b1b}
   .badge.flag{background:#fef3c7;color:#92400e}
+  .badge.topic{background:#eff6ff;color:#1d4ed8}
   .quiz-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .stats{display:flex;gap:14px;font-size:.85rem;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
   .stats b{color:var(--text)}
   .modal-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;
     display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
   .modal{background:#fff;border-radius:12px;box-shadow:var(--shadow-lg);
-    max-width:560px;width:100%;padding:24px;max-height:90vh;overflow-y:auto}
+    max-width:600px;width:100%;padding:24px;max-height:90vh;overflow-y:auto}
   .row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media (max-width:520px){.row-2{grid-template-columns:1fr}}
   .switch{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:.92rem}
   .switch input{width:auto}
+
+  /* topic allocation panel */
+  .topic-panel { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-top: 12px; }
+  .topic-panel.hidden { display: none; }
+  .topic-panel .hint-top { font-size: .85rem; color: var(--muted); margin-bottom: 10px; }
+  .topic-alloc { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+  .topic-alloc:last-child { border-bottom: 0; }
+  .topic-alloc input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--primary); flex: 0 0 auto; }
+  .topic-alloc .tname { flex: 1; font-weight: 600; font-size: .9rem; }
+  .topic-alloc .tcount { color: var(--muted); font-size: .8rem; }
+  .topic-alloc input[type=number] { width: 70px; padding: 6px 8px; font-size: .88rem; text-align: center; }
+  .topic-alloc .disabled { opacity: .5; }
+  .topic-total { display: flex; justify-content: space-between; padding: 12px 4px 0;
+    border-top: 1px solid var(--border); margin-top: 10px; font-weight: 700; font-size: .95rem; }
+  .topic-total .warn { color: var(--warn); }
+  .topic-total .ok { color: var(--success); }
 </style>
 </head>
 <body>
@@ -80,22 +97,36 @@
         <select id="qPeriod" required disabled><option value="">— Select subject first —</option></select>
       </label>
 
-      <div class="row-2">
-        <label class="field">
-          <span>Number of questions</span>
-          <input type="number" id="qNum" min="1" value="10" required>
-          <div class="hint" id="poolHint">Select a period to see pool size.</div>
-        </label>
+      <label class="field">
+        <span>Share code</span>
+        <input type="text" id="qCode" required maxlength="40" pattern="[a-zA-Z0-9\-]+"
+               placeholder="e.g. math7-midterm">
+        <div class="hint">Letters, numbers, hyphens. Goes in the student URL.</div>
+      </label>
 
-        <label class="field">
-          <span>Share code</span>
-          <input type="text" id="qCode" required maxlength="40" pattern="[a-zA-Z0-9\-]+"
-                 placeholder="e.g. math7-midterm">
-          <div class="hint">Letters, numbers, hyphens. Goes in the student URL.</div>
-        </label>
+      <div class="switch" style="margin-top:8px">
+        <input type="checkbox" id="qUseTopics">
+        <label for="qUseTopics"><strong>Draw specific counts from each topic</strong></label>
       </div>
 
-      <div class="switch"><input type="checkbox" id="qShuffleQ" checked> <label for="qShuffleQ">Shuffle question order</label></div>
+      <!-- simple (whole pool) -->
+      <label class="field" id="simpleNumField">
+        <span>Number of questions</span>
+        <input type="number" id="qNum" min="1" value="10">
+        <div class="hint" id="poolHint">Select a period to see pool size.</div>
+      </label>
+
+      <!-- topic allocation -->
+      <div class="topic-panel hidden" id="topicPanel">
+        <div class="hint-top" id="topicHint">Select a period to load topics.</div>
+        <div id="topicList"></div>
+        <div class="topic-total">
+          <span>Total questions</span>
+          <span id="topicTotal">0</span>
+        </div>
+      </div>
+
+      <div class="switch" style="margin-top:12px"><input type="checkbox" id="qShuffleQ" checked> <label for="qShuffleQ">Shuffle question order</label></div>
       <div class="switch"><input type="checkbox" id="qShuffleC" checked> <label for="qShuffleC">Shuffle answer choices</label></div>
       <div class="switch"><input type="checkbox" id="qShowScore" checked> <label for="qShowScore">Show score to student after submit</label></div>
 
@@ -103,13 +134,10 @@
         <label class="field">
           <span>Opens at (optional)</span>
           <input type="datetime-local" id="qOpens">
-          <div class="hint">When the quiz becomes available.</div>
         </label>
-
         <label class="field">
           <span>Closes at (optional)</span>
           <input type="datetime-local" id="qExpires">
-          <div class="hint">When it stops accepting attempts.</div>
         </label>
       </div>
 
@@ -126,8 +154,8 @@
 <script type="module">
 import { requireAuth, signOut, getUser, escapeHtml, toast, fmtDate } from '../assets/supabase.js';
 import {
-  listSubjectsForQuiz, countQuestionsInPeriod, listQuizzes,
-  createQuiz, toggleQuizActive, deleteQuiz, getAttemptStats,
+  listSubjectsForQuiz, countQuestionsInPeriod, listQuizzes, listQuizTopics,
+  getPoolBreakdown, createQuiz, toggleQuizActive, deleteQuiz, getAttemptStats,
   generateCode,
 } from '../assets/admin/quizzes.js';
 
@@ -141,8 +169,11 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
 
 const $ = id => document.getElementById(id);
 let subjects = [];
+let currentBreakdown = null; // { topics:[{id,name,count}], untagged, total }
 
-/* ---------- load list ---------- */
+/* ============================================================
+   LIST
+   ============================================================ */
 async function refreshList() {
   const el = $('quizList');
   el.innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
@@ -152,15 +183,24 @@ async function refreshList() {
       el.innerHTML = '<div class="card"><p style="color:var(--muted)">No quizzes yet. Click "+ New quiz" to create one.</p></div>';
       return;
     }
-    const stats = await Promise.all(quizzes.map(q => getAttemptStats(q.id)));
-    el.innerHTML = quizzes.map((q, i) => renderQuiz(q, stats[i])).join('');
+
+    // fetch stats + topic labels in parallel
+    const enriched = await Promise.all(quizzes.map(async q => {
+      const [stats, topics] = await Promise.all([
+        getAttemptStats(q.id),
+        q.use_topics ? listQuizTopics(q.id) : Promise.resolve([]),
+      ]);
+      return { q, stats, topics };
+    }));
+
+    el.innerHTML = enriched.map(({ q, stats, topics }) => renderQuiz(q, stats, topics)).join('');
     attachHandlers();
   } catch (err) {
     el.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
 }
 
-function renderQuiz(q, stats) {
+function renderQuiz(q, stats, topics) {
   const base = `${location.origin}${location.pathname.replace('admin/quizzes.html', '')}`;
   const url = `${base}?q=${encodeURIComponent(q.code)}`;
   const subjectName = q.subjects?.name || '—';
@@ -170,6 +210,15 @@ function renderQuiz(q, stats) {
     : '<span class="badge inactive">Inactive</span>';
   const flagBadge = stats.flagged
     ? `<span class="badge flag">${stats.flagged} flagged</span>`
+    : '';
+
+  const topicLine = q.use_topics
+    ? `<div style="font-size:.82rem;color:var(--muted);margin-bottom:10px">
+         ${topics.length ? topics.map(t =>
+           `<span class="badge topic">${escapeHtml(t.topics?.name || '?')} · ${t.num_questions}</span>`
+         ).join(' ') : ''}
+         ${q.untagged_num > 0 ? `<span class="badge topic">Untagged · ${q.untagged_num}</span>` : ''}
+       </div>`
     : '';
 
   return `
@@ -183,6 +232,7 @@ function renderQuiz(q, stats) {
       </div>
 
       ${renderScheduleBadge(q)}
+      ${topicLine}
 
       <div class="code-row">
         <span class="code">${escapeHtml(q.code)}</span>
@@ -212,29 +262,14 @@ function renderScheduleBadge(q) {
   const now = Date.now();
   const open = q.opens_at ? new Date(q.opens_at).getTime() : null;
   const close = q.expires_at ? new Date(q.expires_at).getTime() : null;
-
   if (!open && !close) return '';
 
-  let status = '';
-  let bg = '#eef2f7';
-  let color = '#475569';
-
-  if (open && now < open) {
-    status = `Opens ${fmtDate(q.opens_at)}`;
-    bg = '#fef3c7'; color = '#92400e';
-  } else if (close && now > close) {
-    status = `Closed ${fmtDate(q.expires_at)}`;
-    bg = '#fee2e2'; color = '#991b1b';
-  } else if (open && close) {
-    status = `Open until ${fmtDate(q.expires_at)}`;
-    bg = '#dcfce7'; color = '#166534';
-  } else if (open) {
-    status = `Open since ${fmtDate(q.opens_at)}`;
-    bg = '#dcfce7'; color = '#166534';
-  } else if (close) {
-    status = `Closes ${fmtDate(q.expires_at)}`;
-    bg = '#dcfce7'; color = '#166534';
-  }
+  let status = '', bg = '#eef2f7', color = '#475569';
+  if (open && now < open) { status = `Opens ${fmtDate(q.opens_at)}`; bg = '#fef3c7'; color = '#92400e'; }
+  else if (close && now > close) { status = `Closed ${fmtDate(q.expires_at)}`; bg = '#fee2e2'; color = '#991b1b'; }
+  else if (open && close) { status = `Open until ${fmtDate(q.expires_at)}`; bg = '#dcfce7'; color = '#166534'; }
+  else if (open) { status = `Open since ${fmtDate(q.opens_at)}`; bg = '#dcfce7'; color = '#166534'; }
+  else if (close) { status = `Closes ${fmtDate(q.expires_at)}`; bg = '#dcfce7'; color = '#166534'; }
 
   return `<div style="font-size:.82rem;padding:6px 10px;border-radius:6px;background:${bg};color:${color};font-weight:600;margin-bottom:10px">🕒 ${status}</div>`;
 }
@@ -243,15 +278,10 @@ function attachHandlers() {
   document.querySelectorAll('[data-copy]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const url = btn.dataset.copy;
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Link copied to clipboard', 'success');
-      } catch {
-        prompt('Copy this link:', url);
-      }
+      try { await navigator.clipboard.writeText(url); toast('Link copied to clipboard', 'success'); }
+      catch { prompt('Copy this link:', url); }
     });
   });
-
   document.querySelectorAll('[data-action="toggle"]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const isActive = btn.dataset.active === 'true';
@@ -262,24 +292,28 @@ function attachHandlers() {
       } catch (err) { toast(err.message, 'error'); }
     });
   });
-
   document.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('Delete this quiz? All its attempts and results will also be deleted.')) return;
-      try {
-        await deleteQuiz(btn.dataset.id);
-        toast('Quiz deleted', 'success');
-        refreshList();
-      } catch (err) { toast(err.message, 'error'); }
+      try { await deleteQuiz(btn.dataset.id); toast('Quiz deleted', 'success'); refreshList(); }
+      catch (err) { toast(err.message, 'error'); }
     });
   });
 }
 
-/* ---------- create modal ---------- */
+/* ============================================================
+   MODAL
+   ============================================================ */
 const modal = $('modalQuiz');
 const selSubject = $('qSubject');
 const selPeriod  = $('qPeriod');
 const poolHint   = $('poolHint');
+const useTopics  = $('qUseTopics');
+const simpleNumField = $('simpleNumField');
+const topicPanel = $('topicPanel');
+const topicListEl = $('topicList');
+const topicTotalEl = $('topicTotal');
+const topicHint = $('topicHint');
 
 async function loadSubjects() {
   subjects = await listSubjectsForQuiz();
@@ -293,6 +327,7 @@ selSubject.addEventListener('change', () => {
     selPeriod.disabled = true;
     selPeriod.innerHTML = '<option value="">— Select subject first —</option>';
     poolHint.textContent = 'Select a period to see pool size.';
+    topicHint.textContent = 'Select a period to load topics.';
     return;
   }
   const periods = (s.periods || []).slice().sort((a,b) => a.name.localeCompare(b.name));
@@ -300,6 +335,7 @@ selSubject.addEventListener('change', () => {
     selPeriod.disabled = true;
     selPeriod.innerHTML = '<option value="">— No periods —</option>';
     poolHint.textContent = 'This subject has no periods. Add one in Subjects.';
+    topicHint.textContent = 'No periods in this subject.';
     return;
   }
   selPeriod.disabled = false;
@@ -308,13 +344,122 @@ selSubject.addEventListener('change', () => {
 });
 
 selPeriod.addEventListener('change', async () => {
-  if (!selPeriod.value) { poolHint.textContent = 'Select a period to see pool size.'; return; }
-  poolHint.textContent = 'Checking pool size…';
+  if (!selPeriod.value) return;
+  poolHint.textContent = 'Loading…';
   try {
-    const n = await countQuestionsInPeriod(selPeriod.value);
-    poolHint.textContent = `Pool has ${n} question${n === 1 ? '' : 's'}.`;
-  } catch (err) { poolHint.textContent = 'Could not check pool size.'; }
+    currentBreakdown = await getPoolBreakdown(selPeriod.value);
+    poolHint.textContent = `Pool has ${currentBreakdown.total} question${currentBreakdown.total === 1 ? '' : 's'}.`;
+    if (useTopics.checked) renderTopicPanel();
+  } catch (err) {
+    poolHint.textContent = 'Could not load pool.';
+  }
 });
+
+useTopics.addEventListener('change', () => {
+  const on = useTopics.checked;
+  simpleNumField.style.display = on ? 'none' : 'block';
+  topicPanel.classList.toggle('hidden', !on);
+  if (on) renderTopicPanel();
+});
+
+function renderTopicPanel() {
+  if (!currentBreakdown) {
+    topicListEl.innerHTML = '';
+    topicHint.textContent = 'Select a period to load topics.';
+    topicTotalEl.innerHTML = '0';
+    return;
+  }
+
+  const { topics, untagged, total } = currentBreakdown;
+
+  if (!total) {
+    topicListEl.innerHTML = '';
+    topicHint.textContent = 'This period has no questions yet.';
+    topicTotalEl.innerHTML = '0';
+    return;
+  }
+
+  topicHint.textContent = `Pool: ${total} question${total === 1 ? '' : 's'} total. Set how many from each topic.`;
+
+  const rows = [];
+
+  /* per-topic rows */
+  topics.forEach(t => {
+    rows.push(`
+      <div class="topic-alloc" data-topic-id="${t.id}" data-topic-name="${escapeHtml(t.name)}">
+        <input type="checkbox" data-topic-check>
+        <span class="tname">${escapeHtml(t.name)}</span>
+        <span class="tcount">${t.count} in pool</span>
+        <input type="number" min="0" max="${t.count}" value="0" data-topic-num disabled>
+      </div>`);
+  });
+
+  /* untagged row (only if there are untagged questions) */
+  if (untagged > 0) {
+    rows.push(`
+      <div class="topic-alloc" data-untagged="1">
+        <input type="checkbox" data-topic-check>
+        <span class="tname" style="font-style:italic">Untagged</span>
+        <span class="tcount">${untagged} in pool</span>
+        <input type="number" min="0" max="${untagged}" value="0" data-topic-num disabled>
+      </div>`);
+  } else if (topics.length === 0) {
+    topicHint.textContent = 'No topics defined for this period. Create topics in the Questions page first.';
+  }
+
+  topicListEl.innerHTML = rows.join('');
+  updateTotal();
+
+  /* wire up checkbox → enable/disable number input */
+  topicListEl.querySelectorAll('.topic-alloc').forEach(row => {
+    const chk = row.querySelector('[data-topic-check]');
+    const num = row.querySelector('[data-topic-num]');
+    chk.addEventListener('change', () => {
+      num.disabled = !chk.checked;
+      if (chk.checked && Number(num.value) === 0) num.value = 1;
+      if (!chk.checked) num.value = 0;
+      updateTotal();
+    });
+    num.addEventListener('input', updateTotal);
+  });
+}
+
+function updateTotal() {
+  let total = 0;
+  topicListEl.querySelectorAll('.topic-alloc').forEach(row => {
+    const chk = row.querySelector('[data-topic-check]');
+    const num = row.querySelector('[data-topic-num]');
+    if (chk.checked) total += Number(num.value) || 0;
+  });
+
+  const warn = total < 1;
+  topicTotalEl.innerHTML = warn
+    ? `<span class="warn">${total}</span> — set at least 1 question`
+    : `<span class="ok">${total}</span>`;
+}
+
+/* gather the current allocation from the panel */
+function gatherTopicAllocation() {
+  const picks = [];
+  let untaggedNum = 0;
+  topicListEl.querySelectorAll('.topic-alloc').forEach(row => {
+    const chk = row.querySelector('[data-topic-check]');
+    const num = row.querySelector('[data-topic-num]');
+    if (!chk.checked) return;
+    const n = Number(num.value) || 0;
+    if (n <= 0) return;
+    if (row.dataset.untagged) {
+      untaggedNum = n;
+    } else {
+      picks.push({
+        topic_id: row.dataset.topicId,
+        name: row.dataset.topicName,
+        num_questions: n,
+      });
+    }
+  });
+  return { picks, untaggedNum };
+}
 
 function openModal() {
   $('formQuiz').reset();
@@ -325,18 +470,29 @@ function openModal() {
   $('qOpens').value = '';
   $('qExpires').value = '';
   $('quizErr').classList.add('hidden');
-  const suggested = generateCode();
-  $('qCode').value = suggested;
+  $('qCode').value = generateCode();
+
+  useTopics.checked = false;
+  simpleNumField.style.display = 'block';
+  topicPanel.classList.add('hidden');
+  topicListEl.innerHTML = '';
+  topicTotalEl.innerHTML = '0';
+  topicHint.textContent = 'Select a period to load topics.';
+
+  currentBreakdown = null;
   selPeriod.disabled = true;
   selPeriod.innerHTML = '<option value="">— Select subject first —</option>';
   poolHint.textContent = 'Select a period to see pool size.';
+
   modal.classList.remove('hidden');
 }
 
 $('btnNewQuiz').addEventListener('click', openModal);
 $('btnCancelQuiz').addEventListener('click', () => modal.classList.add('hidden'));
 
-/* ---------- create ---------- */
+/* ============================================================
+   CREATE
+   ============================================================ */
 $('formQuiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = $('quizErr');
@@ -346,19 +502,32 @@ $('formQuiz').addEventListener('submit', async (e) => {
     title: $('qTitle').value.trim(),
     subject_id: selSubject.value,
     period_id: selPeriod.value,
-    num_questions: parseInt($('qNum').value, 10),
     code: $('qCode').value.trim().toLowerCase(),
     shuffle_questions: $('qShuffleQ').checked,
     shuffle_choices: $('qShuffleC').checked,
     show_score_at_end: $('qShowScore').checked,
     opens_at: $('qOpens').value ? new Date($('qOpens').value).toISOString() : null,
     expires_at: $('qExpires').value ? new Date($('qExpires').value).toISOString() : null,
+    use_topics: useTopics.checked,
   };
 
   if (!payload.title) { errEl.textContent = 'Enter a title.'; errEl.classList.remove('hidden'); return; }
   if (!payload.subject_id) { errEl.textContent = 'Select a subject.'; errEl.classList.remove('hidden'); return; }
   if (!payload.period_id) { errEl.textContent = 'Select a period.'; errEl.classList.remove('hidden'); return; }
   if (!payload.code) { errEl.textContent = 'Enter a share code.'; errEl.classList.remove('hidden'); return; }
+
+  if (useTopics.checked) {
+    const { picks, untaggedNum } = gatherTopicAllocation();
+    if (!picks.length && untaggedNum < 1) {
+      errEl.textContent = 'Select at least one topic with a count greater than zero.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    payload.topics = picks;
+    payload.untagged_num = untaggedNum;
+  } else {
+    payload.num_questions = parseInt($('qNum').value, 10);
+  }
 
   if (payload.opens_at && payload.expires_at && payload.expires_at <= payload.opens_at) {
     errEl.textContent = 'Close time must be after open time.';
@@ -381,7 +550,9 @@ $('formQuiz').addEventListener('submit', async (e) => {
   }
 });
 
-/* ---------- init ---------- */
+/* ============================================================
+   INIT
+   ============================================================ */
 await loadSubjects();
 refreshList();
 </script>
