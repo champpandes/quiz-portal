@@ -23,17 +23,21 @@
     <p style="text-align:center;color:#64748b">Loading quiz…</p>
   </section>
 
-  <!-- WELCOME (no code in URL) -->
+  <!-- WELCOME -->
   <section class="screen" id="screen-welcome">
     <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
       <span>Quiz Platform <strong style="color:var(--accent);font-weight:800">Champ</strong></span>
     </div>
-    <div class="entry-sub">Scan a QR code or enter a quiz code to begin</div>
+    <div class="entry-sub">Scan a QR code, upload one, or type a quiz code</div>
 
     <div class="card">
-      <button class="block" id="btnScanQR" style="margin-bottom:14px">
+      <button class="block" id="btnScanQR" style="margin-bottom:10px">
         📷 Scan QR code
+      </button>
+
+      <button class="block ghost" id="btnUploadQR">
+        📁 Upload QR image
       </button>
 
       <div class="welcome-divider">or</div>
@@ -41,7 +45,7 @@
       <label class="field">
         <span>Enter quiz code</span>
         <input type="text" id="inCode" autocomplete="off"
-               placeholder="e.g. quiz-a3k9m2"
+               placeholder="e.g. a3k9m2"
                autocapitalize="off" autocorrect="off" spellcheck="false">
       </label>
       <button class="block ghost" id="btnGoCode">Go to quiz →</button>
@@ -54,19 +58,19 @@
     </p>
   </section>
 
-  <!-- QR SCANNER OVERLAY -->
+  <!-- QR SCANNER / DECODER -->
   <section class="screen" id="screen-scanner">
     <div class="scanner-wrap">
       <div class="scanner-head">
         <button class="ghost small" id="btnCloseScanner">← Back</button>
-        <span>Point at the QR code</span>
+        <span id="scannerTitle">Point at the QR code</span>
       </div>
       <div id="qr-reader"></div>
       <p class="scanner-hint" id="scannerHint">Hold steady…</p>
     </div>
   </section>
 
-  <!-- ENTRY (name + student number) -->
+  <!-- ENTRY -->
   <section class="screen" id="screen-entry">
     <div class="entry-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <img src="./assets/logo-icon.svg" alt="" width="46" height="46">
@@ -172,6 +176,7 @@
     <button class="block" id="btnWarnOk">I understand</button>
   </div>
 </div>
+
 <script type="module">
 /* register service worker (PWA) */
 if ('serviceWorker' in navigator) {
@@ -317,21 +322,18 @@ if (!window.__QUIZ_CODE__) {
   }
 
   async function decodeQRFile(file) {
-    /* show the scanner screen with a "reading" message */
     sTitle.textContent = 'Reading QR image…';
     hint.textContent = 'Decoding…';
     hint.style.color = '';
     showScreen('scanner');
 
-    /* clear any leftover camera reader content */
     const readerEl = document.getElementById('qr-reader');
     readerEl.innerHTML = '';
 
     try {
       const Html5Qrcode = await loadHtml5Qrcode();
 
-      /* IMPORTANT: container must be visible (not display:none).
-         The scanner screen is already showing, so this works. */
+      /* container must be visible (not display:none) for the library to work */
       const tempId = 'qr-reader-temp';
       let temp = document.getElementById(tempId);
       if (!temp) {
@@ -351,9 +353,7 @@ if (!window.__QUIZ_CODE__) {
         try { temp.remove(); } catch (_) {}
       }
 
-      if (!decoded) {
-        throw new Error('No QR code found in that image.');
-      }
+      if (!decoded) throw new Error('No QR code found in that image.');
 
       hint.textContent = 'QR found!';
       if (!goToCode(decoded)) {
@@ -377,8 +377,8 @@ if (!window.__QUIZ_CODE__) {
   await import('./assets/quiz.js');
 }
 </script>
+
 <script type="module">
-/* ---------- Entry form validation (name format) ---------- */
 const errEl    = document.getElementById('entryErr');
 const inName   = document.getElementById('inName');
 const inNum    = document.getElementById('inStudentNo');
