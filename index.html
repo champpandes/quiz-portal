@@ -172,23 +172,17 @@
     <button class="block" id="btnWarnOk">I understand</button>
   </div>
 </div>
-
 <script type="module">
-/* ============================================================
-   BOOT ROUTER
-   ============================================================ */
-
 /* register service worker (PWA) */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { /* silent */ });
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
 
 const params = new URLSearchParams(location.search);
 window.__QUIZ_CODE__ = params.get('q') || '';
 
-/* helper: swap the active screen */
 function showScreen(name) {
   ['loading','welcome','scanner','entry','quiz','review','done','error'].forEach(s => {
     const el = document.getElementById('screen-' + s);
@@ -197,32 +191,30 @@ function showScreen(name) {
 }
 
 if (!window.__QUIZ_CODE__) {
-  /* ---------- welcome screen: choose a quiz ---------- */
+
   showScreen('welcome');
 
-  const inCode = document.getElementById('inCode');
-  const errEl  = document.getElementById('welcomeErr');
-  const hint   = document.getElementById('scannerHint');
-  const qrReader = document.getElementById('qr-reader');
+  const inCode  = document.getElementById('inCode');
+  const errEl   = document.getElementById('welcomeErr');
+  const hint    = document.getElementById('scannerHint');
+  const sTitle  = document.getElementById('scannerTitle');
 
   let scanner = null;
   let scannerActive = false;
 
-  /* ----- manual code entry ----- */
+  /* ---------- go to a quiz by code ---------- */
   function goToCode(raw) {
     let code = String(raw || '').trim().toLowerCase();
     if (!code) return false;
 
-    /* if they pasted a full URL, extract the ?q= */
     try {
       if (code.includes('/') || code.includes('?')) {
         const u = new URL(code, location.origin);
         const q = u.searchParams.get('q');
         if (q) code = q.toLowerCase();
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
 
-    /* strip a trailing slash */
     code = code.replace(/\/+$/, '');
     if (!code) return false;
 
@@ -242,20 +234,22 @@ if (!window.__QUIZ_CODE__) {
   });
   inCode.addEventListener('input', () => { errEl.style.display = 'none'; });
 
-  /* ----- QR scanner ----- */
+  /* ---------- load the QR library on demand ---------- */
   async function loadHtml5Qrcode() {
     if (window.Html5Qrcode) return window.Html5Qrcode;
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
       s.onload = resolve;
-      s.onerror = () => reject(new Error('Could not load QR scanner. Check your internet.'));
+      s.onerror = () => reject(new Error('Could not load QR library. Check your internet.'));
       document.head.appendChild(s);
     });
     return window.Html5Qrcode;
   }
 
+  /* ---------- camera scan ---------- */
   async function startScanner() {
+    sTitle.textContent = 'Point at the QR code';
     showScreen('scanner');
     hint.textContent = 'Starting camera…';
     hint.style.color = '';
@@ -268,13 +262,8 @@ if (!window.__QUIZ_CODE__) {
 
       await scanner.start(
         { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-        },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         (decoded) => {
-          /* success */
           stopScanner();
           if (!goToCode(decoded)) {
             showScreen('welcome');
@@ -282,17 +271,14 @@ if (!window.__QUIZ_CODE__) {
             errEl.style.display = 'block';
           }
         },
-        () => { /* ignore individual frame errors */ }
+        () => {}
       );
 
       hint.textContent = 'Point at the QR code';
     } catch (err) {
       hint.textContent = err.message || 'Could not start the camera.';
       hint.style.color = '#dc2626';
-      /* offer manual entry fallback after a moment */
-      setTimeout(() => {
-        if (!scannerActive) showScreen('welcome');
-      }, 3000);
+      setTimeout(() => { if (!scannerActive) showScreen('welcome'); }, 3000);
     }
   }
 
@@ -311,13 +297,86 @@ if (!window.__QUIZ_CODE__) {
     showScreen('welcome');
   });
 
+  /* ---------- upload QR image ---------- */
+  function pickQRFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    document.body.appendChild(input);
+
+    input.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      document.body.removeChild(input);
+      if (!file) return;
+      await decodeQRFile(file);
+    };
+
+    input.click();
+  }
+
+  async function decodeQRFile(file) {
+    /* show the scanner screen with a "reading" message */
+    sTitle.textContent = 'Reading QR image…';
+    hint.textContent = 'Decoding…';
+    hint.style.color = '';
+    showScreen('scanner');
+
+    /* clear any leftover camera reader content */
+    const readerEl = document.getElementById('qr-reader');
+    readerEl.innerHTML = '';
+
+    try {
+      const Html5Qrcode = await loadHtml5Qrcode();
+
+      /* IMPORTANT: container must be visible (not display:none).
+         The scanner screen is already showing, so this works. */
+      const tempId = 'qr-reader-temp';
+      let temp = document.getElementById(tempId);
+      if (!temp) {
+        temp = document.createElement('div');
+        temp.id = tempId;
+        temp.style.cssText = 'position:absolute;left:-9999px;top:0;width:300px;height:300px;';
+        document.body.appendChild(temp);
+      }
+
+      const helper = new Html5Qrcode(tempId, { verbose: false });
+
+      let decoded = null;
+      try {
+        decoded = await helper.scanFile(file, /* showImage= */ false);
+      } finally {
+        try { helper.clear(); } catch (_) {}
+        try { temp.remove(); } catch (_) {}
+      }
+
+      if (!decoded) {
+        throw new Error('No QR code found in that image.');
+      }
+
+      hint.textContent = 'QR found!';
+      if (!goToCode(decoded)) {
+        showScreen('welcome');
+        errEl.textContent = 'That QR code was not a valid quiz code.';
+        errEl.style.display = 'block';
+      }
+    } catch (err) {
+      showScreen('welcome');
+      errEl.textContent =
+        'Could not read that image. Make sure it clearly shows a QR code ' +
+        'and try a brighter, less blurry photo.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  document.getElementById('btnUploadQR').addEventListener('click', pickQRFile);
+
 } else {
-  /* ---------- quiz code is present: run the quiz ---------- */
   showScreen('entry');
   await import('./assets/quiz.js');
 }
 </script>
-
 <script type="module">
 /* ---------- Entry form validation (name format) ---------- */
 const errEl    = document.getElementById('entryErr');
