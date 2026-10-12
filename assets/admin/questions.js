@@ -1,5 +1,5 @@
 /* ============================================================
-   QUESTIONS + CHOICES + PASSAGES + BULK IMPORT
+   QUESTIONS + CHOICES + PASSAGES + TOPICS + BULK IMPORT
    ============================================================ */
 
 import { supabase } from '../supabase.js';
@@ -18,9 +18,10 @@ export async function listQuestions(periodId) {
   const { data, error } = await supabase
     .from('questions')
     .select(`
-      id, text, passage_id, created_at, served_count,
+      id, text, passage_id, topic_id, created_at, served_count,
       choices(id, text, is_correct, position),
-      passages(id, title, text)
+      passages(id, title, text),
+      topics(id, name)
     `)
     .eq('period_id', periodId)
     .order('created_at', { ascending: true });
@@ -38,11 +39,26 @@ export async function listPassages(periodId) {
   return data || [];
 }
 
-/* ---------- writes ---------- */
-export async function createQuestion(periodId, text, choices, passageId = null) {
+export async function listTopics(periodId) {
+  const { data, error } = await supabase
+    .from('topics')
+    .select('id, name, created_at')
+    .eq('period_id', periodId)
+    .order('name');
+  if (error) throw error;
+  return data || [];
+}
+
+/* ---------- question writes ---------- */
+export async function createQuestion(periodId, text, choices, passageId = null, topicId = null) {
   const { data: q, error: qErr } = await supabase
     .from('questions')
-    .insert({ period_id: periodId, text, passage_id: passageId || null })
+    .insert({
+      period_id: periodId,
+      text,
+      passage_id: passageId || null,
+      topic_id: topicId || null,
+    })
     .select()
     .single();
   if (qErr) throw qErr;
@@ -61,10 +77,14 @@ export async function createQuestion(periodId, text, choices, passageId = null) 
   return q;
 }
 
-export async function updateQuestion(questionId, text, choices, passageId = null) {
+export async function updateQuestion(questionId, text, choices, passageId = null, topicId = null) {
   const { error: qErr } = await supabase
     .from('questions')
-    .update({ text, passage_id: passageId || null })
+    .update({
+      text,
+      passage_id: passageId || null,
+      topic_id: topicId || null,
+    })
     .eq('id', questionId);
   if (qErr) throw qErr;
 
@@ -94,6 +114,7 @@ export async function deletePeriodQuestions(periodId) {
   if (error) throw error;
 }
 
+/* ---------- passage writes ---------- */
 export async function createPassage(periodId, title, text) {
   const { data, error } = await supabase
     .from('passages')
@@ -122,7 +143,32 @@ export async function deletePeriodPassages(periodId) {
   if (error) throw error;
 }
 
-/* ---------- bulk insert ---------- */
+/* ---------- topic writes ---------- */
+export async function createTopic(periodId, name) {
+  const { data, error } = await supabase
+    .from('topics')
+    .insert({ period_id: periodId, name: name.trim() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTopic(id, name) {
+  const { error } = await supabase
+    .from('topics')
+    .update({ name: name.trim() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteTopic(id) {
+  // questions referencing this topic have topic_id set to NULL (on delete set null)
+  const { error } = await supabase.from('topics').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ---------- bulk insert (topics not supported yet) ---------- */
 export async function bulkInsert(periodId, rows) {
   if (!rows.length) return 0;
 
@@ -159,7 +205,6 @@ export function parseBulkText(text) {
   if (!lines.length) throw new Error('No data to parse.');
 
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
-
   const rawRows = lines.map(l => splitLine(l, delimiter));
 
   let start = 0;

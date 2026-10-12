@@ -7,454 +7,131 @@
 <link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
 <link rel="stylesheet" href="../assets/admin/admin.css">
 <style>
-  /* ---------- page header ---------- */
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
+  .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
   .page-head h1 { margin-bottom: 4px; }
   .page-head .sub { color: var(--text-muted); font-size: .92rem; margin: 0; }
 
-  /* ---------- selector bar ---------- */
-  .selector-bar {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 14px 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xs);
-    margin-bottom: 18px;
-  }
-  .selector-bar label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: .85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: .04em;
-  }
-  .selector-bar select {
-    width: auto;
-    min-width: 160px;
-    padding: 9px 14px;
-    font-size: .95rem;
-    font-weight: 500;
-  }
+  .selector-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 16px;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); margin-bottom: 18px; }
+  .selector-bar label { display: flex; align-items: center; gap: 8px; font-size: .85rem; font-weight: 600;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .selector-bar select { width: auto; min-width: 160px; padding: 9px 14px; font-size: .95rem; font-weight: 500; }
   .selector-bar .divider { color: var(--text-subtle); font-size: 1.1rem; }
 
-  /* ---------- tabs ---------- */
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 16px;
-    padding: 4px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-xs);
-    width: fit-content;
-  }
-  .tabs button {
-    background: transparent;
-    color: var(--text-muted);
-    border: 0;
-    border-radius: 9px;
-    padding: 9px 18px;
-    font-size: .9rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: none;
-    transition: background .12s, color .12s;
-  }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; padding: 4px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-xs); width: fit-content; }
+  .tabs button { background: transparent; color: var(--text-muted); border: 0; border-radius: 9px;
+    padding: 9px 18px; font-size: .9rem; font-weight: 600; cursor: pointer; box-shadow: none;
+    transition: background .12s, color .12s; }
   .tabs button:hover { background: var(--card-hover); color: var(--text); box-shadow: none; }
-  .tabs button.active {
-    background: var(--primary);
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(37,99,235,.25);
-  }
+  .tabs button.active { background: var(--primary); color: #fff; box-shadow: 0 2px 6px rgba(37,99,235,.25); }
   .tabs button.active:hover { background: var(--primary); color: #fff; }
-  .tabs .count {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 1px 7px;
-    border-radius: 99px;
-    background: rgba(255,255,255,.25);
-    font-size: .75rem;
-    font-weight: 700;
-  }
-  .tabs button:not(.active) .count {
-    background: var(--border);
-    color: var(--text-muted);
-  }
+  .tabs .count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px;
+    background: rgba(255,255,255,.25); font-size: .75rem; font-weight: 700; }
+  .tabs button:not(.active) .count { background: var(--border); color: var(--text-muted); }
 
-  /* ---------- empty state ---------- */
-  .empty-hero {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xs);
-    padding: 60px 30px;
-    text-align: center;
-  }
-  .empty-hero .icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
-    background: var(--primary-soft);
-    color: var(--primary);
-    font-size: 2rem;
-    margin-bottom: 18px;
-  }
+  .empty-hero { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); padding: 60px 30px; text-align: center; }
+  .empty-hero .icon { display: inline-flex; align-items: center; justify-content: center;
+    width: 72px; height: 72px; border-radius: 20px; background: var(--primary-soft); color: var(--primary);
+    font-size: 2rem; margin-bottom: 18px; }
   .empty-hero h2 { font-size: 1.3rem; margin: 0 0 8px; }
-  .empty-hero p {
-    color: var(--text-muted);
-    font-size: .95rem;
-    max-width: 440px;
-    margin: 0 auto 22px;
-    line-height: 1.6;
-  }
-  .empty-hero .actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+  .empty-hero p { color: var(--text-muted); font-size: .95rem; max-width: 440px; margin: 0 auto 22px; line-height: 1.6; }
+  .empty-hero .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
-  /* ---------- questions grid ---------- */
-  .q-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 14px;
-  }
+  .q-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
   @media (max-width: 500px) { .q-grid { grid-template-columns: 1fr; } }
 
-  .q-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xs);
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    transition: border-color .15s, box-shadow .15s;
-  }
+  .q-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); padding: 18px; display: flex; flex-direction: column;
+    transition: border-color .15s, box-shadow .15s; }
   .q-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
-
-  .q-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-    font-size: .78rem;
-    color: var(--text-subtle);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    font-weight: 700;
-  }
+  .q-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 12px; font-size: .78rem; color: var(--text-subtle); text-transform: uppercase;
+    letter-spacing: .05em; font-weight: 700; }
   .q-card-head .left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .q-tag {
-    background: var(--primary-soft);
-    color: var(--primary);
-    padding: 3px 9px;
-    border-radius: 99px;
-    font-size: .7rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .q-served {
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
-    font-size: .75rem;
-  }
-
-  .q-text {
-    font-size: 1rem;
-    font-weight: 600;
-    line-height: 1.5;
-    color: var(--text);
-    margin-bottom: 14px;
-    letter-spacing: -0.005em;
-  }
-
-  .q-choices {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .q-choices li {
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--bg);
-    font-size: .88rem;
-    line-height: 1.4;
-    display: flex;
-    gap: 9px;
-    align-items: flex-start;
-    color: var(--text-muted);
-  }
-  .q-choices li .letter {
-    flex: 0 0 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--border);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .7rem;
-    font-weight: 800;
-    margin-top: 1px;
-  }
-  .q-choices li.correct {
-    background: var(--success-soft);
-    color: var(--success);
-    font-weight: 600;
-  }
+  .q-tag { padding: 3px 9px; border-radius: 99px; font-size: .7rem; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 4px; }
+  .q-tag.passage { background: var(--primary-soft); color: var(--primary); }
+  .q-tag.topic { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .q-served { font-weight: 500; text-transform: none; letter-spacing: 0; font-size: .75rem; }
+  .q-text { font-size: 1rem; font-weight: 600; line-height: 1.5; color: var(--text); margin-bottom: 14px; }
+  .q-choices { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 5px; }
+  .q-choices li { padding: 8px 12px; border-radius: 8px; background: var(--bg); font-size: .88rem;
+    line-height: 1.4; display: flex; gap: 9px; align-items: flex-start; color: var(--text-muted); }
+  .q-choices li .letter { flex: 0 0 20px; height: 20px; border-radius: 50%; background: var(--border);
+    color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 800; margin-top: 1px; }
+  .q-choices li.correct { background: var(--success-soft); color: var(--success); font-weight: 600; }
   .q-choices li.correct .letter { background: var(--success); color: #fff; }
+  .q-card-foot { display: flex; gap: 6px; justify-content: flex-end; padding-top: 12px;
+    border-top: 1px solid var(--border); margin-top: auto; }
 
-  .q-card-foot {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-    margin-top: auto;
-  }
-
-  /* ---------- passage cards ---------- */
-  .p-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xs);
-    padding: 20px;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .p-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
-  .p-card .p-title {
-    font-weight: 700;
-    font-size: 1.02rem;
-    margin-bottom: 10px;
-    letter-spacing: -0.01em;
-  }
-  .p-card .p-preview {
-    font-size: .9rem;
-    line-height: 1.6;
-    color: var(--text-muted);
-    white-space: pre-wrap;
-    max-height: 140px;
-    overflow: hidden;
-    position: relative;
-    margin-bottom: 14px;
-  }
-  .p-card .p-preview::after {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    height: 40px;
-    background: linear-gradient(transparent, var(--card));
-    pointer-events: none;
-  }
-  .p-card-foot {
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
+  .p-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); padding: 20px; }
+  .p-card .p-title { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
+  .p-card .p-preview { font-size: .9rem; line-height: 1.6; color: var(--text-muted);
+    white-space: pre-wrap; max-height: 140px; overflow: hidden; position: relative; margin-bottom: 14px; }
+  .p-card .p-preview::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 40px; background: linear-gradient(transparent, var(--card)); pointer-events: none; }
+  .p-card-foot { display: flex; gap: 8px; justify-content: space-between; align-items: center;
+    padding-top: 12px; border-top: 1px solid var(--border); }
   .p-card-foot .p-meta { font-size: .82rem; color: var(--text-muted); }
   .p-card-foot .p-meta b { color: var(--text); }
 
-  /* ---------- sticky toolbar ---------- */
-  .sticky-toolbar {
-    position: sticky;
-    top: 12px;
-    z-index: 10;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 12px 14px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 16px;
-  }
+  /* topic cards */
+  .topic-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .topic-card .t-name { font-weight: 700; font-size: 1.02rem; letter-spacing: -0.01em; }
+  .topic-card .t-count { font-size: .85rem; color: var(--text-muted); }
+  .topic-card .t-actions { display: flex; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); margin-top: auto; }
+
+  .sticky-toolbar { position: sticky; top: 12px; z-index: 10; display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap; padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm); margin-bottom: 16px; }
   .sticky-toolbar .spacer { flex: 1; }
 
-  /* ---------- modal ---------- */
-  .modal-back {
-    position: fixed; inset: 0;
-    background: rgba(15,23,42,.6);
-    backdrop-filter: blur(3px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    overflow-y: auto;
-  }
+  .modal-back { position: fixed; inset: 0; background: rgba(15,23,42,.6); backdrop-filter: blur(3px);
+    z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
   .modal-back.hidden { display: none; }
-  .modal {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    max-width: 660px;
-    width: 100%;
-    padding: 28px;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); max-width: 660px; width: 100%; padding: 28px; max-height: 90vh; overflow-y: auto; }
   .modal.wide { max-width: 820px; }
   .modal h2 { margin-top: 0; }
 
-  .choice-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-  .choice-row input[type=radio] {
-    flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
-    accent-color: var(--primary);
-  }
+  .choice-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .choice-row input[type=radio] { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--primary); }
   .choice-row input[type=text] { flex: 1; }
   .choice-row input[type=radio]:checked + input[type=text] {
-    border-color: var(--success);
-    box-shadow: 0 0 0 3px var(--success-soft);
-  }
+    border-color: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 
-  .bulk-help {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-    font-family: var(--font-mono);
-    font-size: .78rem;
-    white-space: pre;
-    overflow-x: auto;
-    margin: 10px 0;
-    color: var(--text-muted);
-  }
-  .bulk-errors {
-    color: var(--danger);
-    font-size: .85rem;
-    margin-top: 10px;
-  }
+  .bulk-help { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px; font-family: var(--font-mono); font-size: .78rem; white-space: pre;
+    overflow-x: auto; margin: 10px 0; color: var(--text-muted); }
+  .bulk-errors { color: var(--danger); font-size: .85rem; margin-top: 10px; }
   .bulk-errors ul { margin: 6px 0 0; padding-left: 20px; }
 
-  /* ---------- bulk preview ---------- */
-  .preview-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-height: 55vh;
-    overflow-y: auto;
-    padding: 4px 4px 4px 0;
-    margin: 6px -4px 12px 0;
-  }
-  .preview-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-  }
-  .preview-card .p-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    font-size: .78rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: .04em;
-  }
-  .preview-card textarea {
-    width: 100%;
-    min-height: 52px;
-    font-size: .95rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
-    padding: 9px 11px;
-    margin-bottom: 10px;
-    resize: vertical;
-  }
-  .preview-choice {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-  .preview-choice input[type=radio] {
-    width: 20px;
-    height: 20px;
-    accent-color: var(--success);
-    flex: 0 0 auto;
-  }
-  .preview-choice .letter {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--border);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .72rem;
-    font-weight: 800;
-    flex: 0 0 22px;
-  }
-  .preview-choice input[type=text] {
-    flex: 1;
-    font-size: .9rem;
-    padding: 7px 11px;
-  }
-  .preview-choice input[type=radio]:checked ~ .letter {
-    background: var(--success);
-    color: #fff;
-  }
+  .preview-list { display: flex; flex-direction: column; gap: 12px; max-height: 55vh; overflow-y: auto;
+    padding: 4px 4px 4px 0; margin: 6px -4px 12px 0; }
+  .preview-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .preview-card .p-head { display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; font-size: .78rem; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  .preview-card textarea { width: 100%; min-height: 52px; font-size: .95rem; font-weight: 600;
+    border-radius: var(--radius-sm); padding: 9px 11px; margin-bottom: 10px; resize: vertical; }
+  .preview-choice { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .preview-choice input[type=radio] { width: 20px; height: 20px; accent-color: var(--success); flex: 0 0 auto; }
+  .preview-choice .letter { width: 22px; height: 22px; border-radius: 50%; background: var(--border);
+    color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 800; flex: 0 0 22px; }
+  .preview-choice input[type=text] { flex: 1; font-size: .9rem; padding: 7px 11px; }
+  .preview-choice input[type=radio]:checked ~ .letter { background: var(--success); color: #fff; }
   .preview-choice input[type=radio]:checked ~ input[type=text] {
-    border-color: var(--success);
-    box-shadow: 0 0 0 3px var(--success-soft);
-    font-weight: 600;
-  }
-  .preview-card .add-choice {
-    margin-top: 4px;
-  }
-  .preview-summary {
-    background: var(--primary-soft);
-    color: var(--primary);
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: .88rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
+    border-color: var(--success); box-shadow: 0 0 0 3px var(--success-soft); font-weight: 600; }
+  .preview-card .add-choice { margin-top: 4px; }
+  .preview-summary { background: var(--primary-soft); color: var(--primary); padding: 10px 14px;
+    border-radius: var(--radius-sm); font-size: .88rem; font-weight: 600; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -478,7 +155,7 @@
   <div class="page-head">
     <div>
       <h1>Question Pool</h1>
-      <p class="sub">Add questions or reading passages. Quizzes pull randomly from here.</p>
+      <p class="sub">Add questions, passages, and topics. Quizzes pull from here.</p>
     </div>
   </div>
 
@@ -501,6 +178,9 @@
     <button data-tab="passages">
       Passages <span class="count" id="tabPCount">0</span>
     </button>
+    <button data-tab="topics">
+      Topics <span class="count" id="tabTCount">0</span>
+    </button>
   </div>
 
   <div id="content"></div>
@@ -514,6 +194,14 @@
       <label class="field">
         <span>Question</span>
         <textarea id="qText" required maxlength="1000" placeholder="Type the question…"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Topic (optional)</span>
+        <select id="qTopic">
+          <option value="">— None —</option>
+        </select>
+        <div class="hint">Group questions by topic so quizzes can pull a balanced mix.</div>
       </label>
 
       <label class="field">
@@ -558,12 +246,29 @@
   </div>
 </div>
 
-<!-- ============ bulk modal (2-step) ============ -->
+<!-- ============ topic modal ============ -->
+<div class="modal-back hidden" id="modalTopic">
+  <div class="modal" style="max-width:420px">
+    <h2 id="modalTopicTitle">Add topic</h2>
+    <form id="formTopic">
+      <label class="field">
+        <span>Topic name</span>
+        <input type="text" id="tName" required maxlength="80" placeholder="e.g. Fractions">
+      </label>
+      <div id="topicErr" class="msg error hidden"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button type="button" class="ghost" id="btnCancelTopic">Cancel</button>
+        <button type="submit" id="btnSaveTopic">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ bulk modal ============ -->
 <div class="modal-back hidden" id="modalBulk">
   <div class="modal wide">
     <h2>Bulk upload questions</h2>
 
-    <!-- STEP 1 — paste -->
     <div id="bulkStep1">
       <p style="color:var(--text-muted);font-size:.9rem;margin-top:0">
         Paste rows below. Use <strong>tab</strong> or <strong>comma</strong> to separate columns.
@@ -573,15 +278,12 @@
 What is 2+2?,3,4,5,6,B
 Capital of France?,Paris,London,Rome,Madrid,A</div>
       <p style="color:var(--text-muted);font-size:.85rem">
-        <strong>Tip:</strong> copy directly from Excel or Google Sheets to avoid comma issues —
-        it pastes as tab-separated automatically.<br>
-        Correct answer can be a letter (<code>A</code>–<code>F</code>),
-        a number (<code>1</code>–<code>6</code>), or the exact text. 2–6 choices per question.
+        <strong>Tip:</strong> copy from Excel or Google Sheets to avoid comma issues.<br>
+        Correct answer can be a letter (<code>A</code>–<code>F</code>), a number (<code>1</code>–<code>6</code>), or the exact text.
       </p>
       <label class="field">
         <span>Paste here</span>
-        <textarea id="bulkText"
-          style="min-height:200px;font-family:var(--font-mono);font-size:.85rem"
+        <textarea id="bulkText" style="min-height:200px;font-family:var(--font-mono);font-size:.85rem"
           placeholder="Paste questions here…"></textarea>
       </label>
       <div id="bulkErrors"></div>
@@ -591,12 +293,10 @@ Capital of France?,Paris,London,Rome,Madrid,A</div>
       </div>
     </div>
 
-    <!-- STEP 2 — preview & edit -->
     <div id="bulkStep2" class="hidden">
       <div class="preview-summary" id="previewSummary"></div>
       <p style="color:var(--text-muted);font-size:.88rem;margin-top:0">
         Check each question and edit anything that looks wrong.
-        Click the radio next to a choice to change the correct answer.
       </p>
       <div class="preview-list" id="previewList"></div>
       <div id="previewErrors"></div>
@@ -614,9 +314,10 @@ Capital of France?,Paris,London,Rome,Madrid,A</div>
 <script type="module">
 import { requireAuth, signOut, getUser, escapeHtml, toast } from '../assets/supabase.js';
 import {
-  listSubjects, listQuestions, listPassages,
+  listSubjects, listQuestions, listPassages, listTopics,
   createQuestion, updateQuestion, deleteQuestion, deletePeriodQuestions,
   createPassage, updatePassage, deletePassage, deletePeriodPassages,
+  createTopic, updateTopic, deleteTopic,
   bulkInsert, parseBulkText,
 } from '../assets/admin/questions.js';
 
@@ -631,10 +332,12 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
 let subjects = [];
 let questions = [];
 let passages = [];
+let topics = [];
 let editingId = null;
 let editingPassageId = null;
+let editingTopicId = null;
 let activeTab = 'questions';
-let previewQuestions = [];   // staged bulk questions
+let previewQuestions = [];
 
 const $ = id => document.getElementById(id);
 const content = $('content');
@@ -665,12 +368,9 @@ $('selSubject').addEventListener('change', () => {
     sel.disabled = true;
     sel.innerHTML = '<option value="">— No periods yet —</option>';
     tabsEl.style.display = 'none';
-    renderEmptyHero(
-      '📚',
-      'No periods in this subject',
+    renderEmptyHero('📚', 'No periods in this subject',
       'Add a period first — for example "1st Quarter" or "Midterms" — before adding questions.',
-      [{ label: 'Go to Subjects', href: 'subjects.html' }]
-    );
+      [{ label: 'Go to Subjects', href: 'subjects.html' }]);
     return;
   }
   sel.disabled = false;
@@ -698,7 +398,7 @@ function renderWelcome() {
     <div class="empty-hero">
       <div class="icon">📝</div>
       <h2>Pick a subject and period</h2>
-      <p>Choose a subject and period above to see its question pool. Questions you add will be available when creating quizzes.</p>
+      <p>Choose a subject and period above to see its question pool.</p>
     </div>`;
 }
 
@@ -722,16 +422,20 @@ async function loadAll() {
   content.innerHTML = '<div class="empty-hero"><div class="icon">⏳</div><p>Loading…</p></div>';
   const periodId = $('selPeriod').value;
   try {
-    const [q, p] = await Promise.all([
+    const [q, p, t] = await Promise.all([
       listQuestions(periodId),
       listPassages(periodId),
+      listTopics(periodId),
     ]);
     questions = q;
     passages = p;
+    topics = t;
     $('tabQCount').textContent = questions.length;
     $('tabPCount').textContent = passages.length;
+    $('tabTCount').textContent = topics.length;
     if (activeTab === 'questions') renderQuestions();
-    else renderPassages();
+    else if (activeTab === 'passages') renderPassages();
+    else renderTopics();
   } catch (err) {
     content.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
   }
@@ -746,7 +450,8 @@ tabsEl.addEventListener('click', (e) => {
   activeTab = btn.dataset.tab;
   tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
   if (activeTab === 'questions') renderQuestions();
-  else renderPassages();
+  else if (activeTab === 'passages') renderPassages();
+  else renderTopics();
 });
 
 /* ============================================================
@@ -801,14 +506,17 @@ function renderQuestions() {
 function renderQ(q) {
   const choices = (q.choices || []).slice().sort((a,b) => a.position - b.position);
   const passageTag = q.passages
-    ? `<span class="q-tag">📄 ${escapeHtml(q.passages.title || 'Passage')}</span>`
+    ? `<span class="q-tag passage">📄 ${escapeHtml(q.passages.title || 'Passage')}</span>`
+    : '';
+  const topicTag = q.topics
+    ? `<span class="q-tag topic">🏷 ${escapeHtml(q.topics.name)}</span>`
     : '';
   const served = q.served_count || 0;
 
   return `
     <div class="q-card">
       <div class="q-card-head">
-        <div class="left">${passageTag}</div>
+        <div class="left">${topicTag}${passageTag}</div>
         <span class="q-served">served ${served}×</span>
       </div>
       <div class="q-text">${escapeHtml(q.text)}</div>
@@ -835,7 +543,7 @@ function renderPassages() {
       <div class="empty-hero">
         <div class="icon">📄</div>
         <h2>No passages yet</h2>
-        <p>Passages let you attach a shared reading text to multiple questions — perfect for comprehension exercises.</p>
+        <p>Passages let you attach a shared reading text to multiple questions.</p>
         <div class="actions">
           <button id="btnEmptyP">+ Add passage</button>
         </div>
@@ -888,11 +596,63 @@ function renderP(p) {
 }
 
 /* ============================================================
+   TOPICS TAB
+   ============================================================ */
+function renderTopics() {
+  if (!topics.length) {
+    content.innerHTML = `
+      <div class="empty-hero">
+        <div class="icon">🏷</div>
+        <h2>No topics yet</h2>
+        <p>Topics let you group questions by theme — Fractions, Geometry, Grammar, etc. Quizzes can then pull a balanced mix from each topic.</p>
+        <div class="actions">
+          <button id="btnEmptyT">+ Add topic</button>
+        </div>
+      </div>`;
+    $('btnEmptyT').addEventListener('click', () => openTopic(null));
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="sticky-toolbar">
+      <button id="btnNewT">+ Add topic</button>
+      <div class="spacer"></div>
+    </div>
+    <div class="q-grid">
+      ${topics.map(renderT).join('')}
+    </div>`;
+
+  $('btnNewT').addEventListener('click', () => openTopic(null));
+  content.querySelectorAll('[data-edit-t]').forEach(b =>
+    b.addEventListener('click', () => openTopic(b.dataset.editT)));
+  content.querySelectorAll('[data-del-t]').forEach(b =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Delete this topic? Questions tagged with it will become untagged.')) return;
+      try { await deleteTopic(b.dataset.delT); toast('Topic deleted', 'success'); loadAll(); }
+      catch (err) { toast(err.message, 'error'); }
+    }));
+}
+
+function renderT(t) {
+  const count = questions.filter(q => q.topic_id === t.id).length;
+  return `
+    <div class="topic-card">
+      <div class="t-name">🏷 ${escapeHtml(t.name)}</div>
+      <div class="t-count">${count} question${count === 1 ? '' : 's'}</div>
+      <div class="t-actions">
+        <button class="ghost small" data-edit-t="${t.id}">Rename</button>
+        <button class="danger small" data-del-t="${t.id}">Delete</button>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
    QUESTION MODAL
    ============================================================ */
 const modalEdit = $('modalEdit');
 const choiceRows = $('choiceRows');
 const selPassage = $('qPassage');
+const selTopic   = $('qTopic');
 
 function addChoiceRow(text = '', correct = false) {
   const div = document.createElement('div');
@@ -908,9 +668,12 @@ function addChoiceRow(text = '', correct = false) {
   choiceRows.appendChild(div);
 }
 
-function populatePassageSelect(selectedId) {
+function populateDropdowns(selectedPassage, selectedTopic) {
   selPassage.innerHTML = '<option value="">— None —</option>' +
-    passages.map(p => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${escapeHtml(p.title || 'Untitled passage')}</option>`).join('');
+    passages.map(p => `<option value="${p.id}" ${p.id === selectedPassage ? 'selected' : ''}>${escapeHtml(p.title || 'Untitled passage')}</option>`).join('');
+
+  selTopic.innerHTML = '<option value="">— None —</option>' +
+    topics.map(t => `<option value="${t.id}" ${t.id === selectedTopic ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
 }
 
 function openEdit(id) {
@@ -921,12 +684,12 @@ function openEdit(id) {
     const q = questions.find(x => x.id === id);
     if (!q) return;
     $('qText').value = q.text;
-    populatePassageSelect(q.passage_id);
+    populateDropdowns(q.passage_id, q.topic_id);
     (q.choices || []).slice().sort((a,b) => a.position - b.position)
       .forEach(c => addChoiceRow(c.text, c.is_correct));
   } else {
     $('qText').value = '';
-    populatePassageSelect(null);
+    populateDropdowns(null, null);
     for (let i = 0; i < 4; i++) addChoiceRow();
     choiceRows.querySelector('input[type=radio]').checked = true;
   }
@@ -959,11 +722,12 @@ $('formQuestion').addEventListener('submit', async (e) => {
 
   const periodId = $('selPeriod').value;
   const passageId = selPassage.value || null;
+  const topicId = selTopic.value || null;
   const btn = $('btnSaveQuestion');
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    if (editingId) await updateQuestion(editingId, text, choices, passageId);
-    else await createQuestion(periodId, text, choices, passageId);
+    if (editingId) await updateQuestion(editingId, text, choices, passageId, topicId);
+    else await createQuestion(periodId, text, choices, passageId, topicId);
     toast(editingId ? 'Question updated' : 'Question added', 'success');
     closeEdit();
     loadAll();
@@ -1015,7 +779,51 @@ $('formPassage').addEventListener('submit', async (e) => {
 });
 
 /* ============================================================
-   BULK UPLOAD (2-step: paste → preview → upload)
+   TOPIC MODAL
+   ============================================================ */
+const modalTopic = $('modalTopic');
+
+function openTopic(id) {
+  editingTopicId = id;
+  $('modalTopicTitle').textContent = id ? 'Rename topic' : 'Add topic';
+  $('topicErr').classList.add('hidden');
+  if (id) {
+    const t = topics.find(x => x.id === id);
+    if (!t) return;
+    $('tName').value = t.name;
+  } else {
+    $('tName').value = '';
+  }
+  modalTopic.classList.remove('hidden');
+  setTimeout(() => $('tName').focus(), 50);
+}
+function closeTopic() { modalTopic.classList.add('hidden'); editingTopicId = null; }
+
+$('btnCancelTopic').addEventListener('click', closeTopic);
+
+$('formTopic').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('tName').value.trim();
+  if (!name) { $('topicErr').textContent = 'Enter a topic name.'; $('topicErr').classList.remove('hidden'); return; }
+
+  const periodId = $('selPeriod').value;
+  const btn = $('btnSaveTopic');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editingTopicId) await updateTopic(editingTopicId, name);
+    else await createTopic(periodId, name);
+    toast(editingTopicId ? 'Topic renamed' : 'Topic added', 'success');
+    closeTopic();
+    loadAll();
+  } catch (err) {
+    $('topicErr').textContent = err.message;
+    $('topicErr').classList.remove('hidden');
+  }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+});
+
+/* ============================================================
+   BULK UPLOAD
    ============================================================ */
 const modalBulk = $('modalBulk');
 
@@ -1029,40 +837,27 @@ function openBulk() {
   modalBulk.classList.remove('hidden');
   setTimeout(() => $('bulkText').focus(), 50);
 }
-
-function closeBulk() {
-  modalBulk.classList.add('hidden');
-  previewQuestions = [];
-}
+function closeBulk() { modalBulk.classList.add('hidden'); previewQuestions = []; }
 
 $('btnCancelBulk').addEventListener('click', closeBulk);
 $('btnCancelBulk2').addEventListener('click', closeBulk);
 
-/* ---------- step 1 → step 2 ---------- */
 $('btnPreviewBulk').addEventListener('click', () => {
   const raw = $('bulkText').value;
   if (!raw.trim()) { toast('Paste some questions first', 'error'); return; }
 
   let parsed, errors;
-  try {
-    ({ parsed, errors } = parseBulkText(raw));
-  } catch (err) {
-    $('bulkErrors').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
-    return;
-  }
+  try { ({ parsed, errors } = parseBulkText(raw)); }
+  catch (err) { $('bulkErrors').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`; return; }
 
   $('bulkErrors').innerHTML = errors.length
-    ? `<div class="bulk-errors">
-         <strong>${errors.length} line${errors.length === 1 ? '' : 's'} skipped:</strong>
-         <ul>${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul>
-       </div>`
+    ? `<div class="bulk-errors"><strong>${errors.length} line${errors.length === 1 ? '' : 's'} skipped:</strong>
+         <ul>${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul></div>`
     : '';
 
   if (!parsed.length) { toast('No valid questions found', 'error'); return; }
 
-  // deep copy so edits don't affect the original parse
   previewQuestions = JSON.parse(JSON.stringify(parsed));
-
   $('bulkStep1').classList.add('hidden');
   $('bulkStep2').classList.remove('hidden');
   renderPreview();
@@ -1073,7 +868,6 @@ $('btnBackToPaste').addEventListener('click', () => {
   $('bulkStep2').classList.add('hidden');
 });
 
-/* ---------- render preview ---------- */
 function renderPreview() {
   $('previewSummary').textContent =
     `${previewQuestions.length} question${previewQuestions.length === 1 ? '' : 's'} ready to upload`;
@@ -1116,16 +910,10 @@ function renderPreview() {
   `).join('');
 }
 
-/* ---------- preview interactions ---------- */
 $('previewList').addEventListener('input', (e) => {
   const t = e.target;
-
   const qIdx = t.dataset.qText;
-  if (qIdx !== undefined) {
-    previewQuestions[parseInt(qIdx, 10)].text = t.value;
-    return;
-  }
-
+  if (qIdx !== undefined) { previewQuestions[parseInt(qIdx, 10)].text = t.value; return; }
   const cIdx = t.dataset.choiceText;
   if (cIdx !== undefined) {
     const [q, c] = cIdx.split(':').map(Number);
@@ -1137,11 +925,7 @@ $('previewList').addEventListener('change', (e) => {
   const cIdx = e.target.dataset.correct;
   if (cIdx === undefined) return;
   const [q, ci] = cIdx.split(':').map(Number);
-  previewQuestions[q].choices.forEach((choice, i) => {
-    choice.is_correct = (i === ci);
-  });
-  // visually update — re-render just this card's choices
-  // (simplest: re-render the whole preview)
+  previewQuestions[q].choices.forEach((choice, i) => { choice.is_correct = (i === ci); });
   renderPreview();
 });
 
@@ -1157,57 +941,39 @@ $('previewList').addEventListener('click', (e) => {
     renderPreview();
     return;
   }
-
   if (rc) {
     const [q, ci] = rc.dataset.removeChoice.split(':').map(Number);
-    if (previewQuestions[q].choices.length <= 2) {
-      toast('At least 2 choices required', 'error');
-      return;
-    }
+    if (previewQuestions[q].choices.length <= 2) { toast('At least 2 choices required', 'error'); return; }
     const wasCorrect = previewQuestions[q].choices[ci].is_correct;
     previewQuestions[q].choices.splice(ci, 1);
-    if (wasCorrect && previewQuestions[q].choices[0]) {
-      previewQuestions[q].choices[0].is_correct = true;
-    }
+    if (wasCorrect && previewQuestions[q].choices[0]) previewQuestions[q].choices[0].is_correct = true;
     renderPreview();
     return;
   }
-
   if (ac) {
     const q = parseInt(ac.dataset.addChoice, 10);
-    if (previewQuestions[q].choices.length >= 6) {
-      toast('Maximum 6 choices', 'error');
-      return;
-    }
+    if (previewQuestions[q].choices.length >= 6) { toast('Maximum 6 choices', 'error'); return; }
     previewQuestions[q].choices.push({ text: '', is_correct: false });
     renderPreview();
     return;
   }
 });
 
-/* ---------- upload ---------- */
 $('btnDoBulk').addEventListener('click', async () => {
-  if (!previewQuestions.length) {
-    toast('No questions to upload', 'error');
-    return;
-  }
+  if (!previewQuestions.length) { toast('No questions to upload', 'error'); return; }
 
-  // validate
   for (let i = 0; i < previewQuestions.length; i++) {
     const q = previewQuestions[i];
     if (!q.text.trim()) {
-      $('previewErrors').innerHTML =
-        `<div class="msg error">Question ${i + 1} has no text.</div>`;
+      $('previewErrors').innerHTML = `<div class="msg error">Question ${i + 1} has no text.</div>`;
       return;
     }
     if (q.choices.some(c => !c.text.trim())) {
-      $('previewErrors').innerHTML =
-        `<div class="msg error">Question ${i + 1} has an empty choice.</div>`;
+      $('previewErrors').innerHTML = `<div class="msg error">Question ${i + 1} has an empty choice.</div>`;
       return;
     }
     if (!q.choices.some(c => c.is_correct)) {
-      $('previewErrors').innerHTML =
-        `<div class="msg error">Question ${i + 1} has no correct answer selected.</div>`;
+      $('previewErrors').innerHTML = `<div class="msg error">Question ${i + 1} has no correct answer selected.</div>`;
       return;
     }
   }
