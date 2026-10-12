@@ -557,8 +557,10 @@ $('btnWarnOk').addEventListener('click', async () => {
   const btnHome = $('btnDoneHome');
   if (btnHome) {
     btnHome.addEventListener('click', () => {
-      wipeStudent();                 // in case anything survived
-      location.href = location.pathname; // navigate to index.html (no query)
+      wipeStudent();
+      // URL is already stripped of ?q= in doSubmit, so force a full reload
+      // (setting location.href to the same URL is a no-op in browsers)
+      location.reload();
     });
   }
 
