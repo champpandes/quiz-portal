@@ -3,7 +3,7 @@
    ============================================================ */
 
 export const SUPABASE_URL      = 'https://xqrbwvyvuxxgfcuinxsk.supabase.co';
-export const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY_HERE';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxcmJ2d3l2dXh4Z2ZjdWlueHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMjY2NTcsImV4cCI6MjEwNjgwMjY1N30.XreL2WoENs7pjJ7_yX283oapMhDBC650LUTC9Q2VieU';
 
 /* ---------- Anti-cheat ---------- */
 // How many warnings before the quiz force-submits.
