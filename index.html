@@ -92,7 +92,7 @@
     <div class="card">
       <label class="field">
         <span>Student number</span>
-        <input type="text" id="inStudentNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 2024-00123">
+        <input type="text" id="inStudentNo" inputmode="numeric" autocomplete="off" placeholder="e.g. 11-05075">
       </label>
 
       <label class="field">
@@ -446,6 +446,9 @@ if (!window.__QUIZ_CODE__) {
 </script>
 
 <script type="module">
+/* ============================================================
+   ENTRY FORM VALIDATION + AUTO-DASH STUDENT NUMBER
+   ============================================================ */
 const errEl    = document.getElementById('entryErr');
 const inName   = document.getElementById('inName');
 const inNum    = document.getElementById('inStudentNo');
@@ -457,6 +460,32 @@ function hideEntryError() { errEl.style.display = 'none'; }
 inName.addEventListener('input', hideEntryError);
 inNum.addEventListener('input', hideEntryError);
 
+/* ---------- auto-format: single dash after the 2nd digit ----------
+   1         -> 1
+   11        -> 11
+   110       -> 11-0
+   1105      -> 11-05
+   11050     -> 11-050
+   1105075   -> 11-05075
+   12345678  -> 12-345678
+   ------------------------------------------------------------------ */
+function formatStudentNumber(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 20);
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, 2) + '-' + digits.slice(2);
+}
+
+inNum.addEventListener('input', () => {
+  const formatted = formatStudentNumber(inNum.value);
+  if (inNum.value !== formatted) {
+    inNum.value = formatted;
+    try { inNum.setSelectionRange(formatted.length, formatted.length); } catch (_) {}
+  }
+});
+
+if (inNum.value) inNum.value = formatStudentNumber(inNum.value);
+
+/* ---------- submit validation ---------- */
 btnStart.addEventListener('click', (e) => {
   const num  = inNum.value.trim();
   const name = inName.value.trim();
