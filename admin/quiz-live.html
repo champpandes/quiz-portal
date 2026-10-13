@@ -73,7 +73,7 @@
 import { requireAuth, signOut, getUser, escapeHtml, supabase } from '../assets/supabase.js';
 import { getQuiz } from '../assets/admin/results.js';
 
-const REFRESH_MS = 5000;
+const REFRESH_MS = 10000;
 
 const session = await requireAuth('index.html');
 if (!session) throw new Error('redirecting');
@@ -116,7 +116,7 @@ function renderHead() {
           <span class="live-dot" id="liveDot"></span>Live · ${escapeHtml(quiz.title)}
         </h1>
         <div style="color:var(--text-muted);font-size:.9rem;margin-top:4px">
-          Auto-refreshing every 5 seconds · Code:
+          Auto-refreshing every 10 seconds · Code:
           <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${escapeHtml(quiz.code)}</span>
         </div>
       </div>
