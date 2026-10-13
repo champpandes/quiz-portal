@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live · Quiz Platform Champ</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo-icon.svg">
+<link rel="stylesheet" href="../assets/admin/admin.css">
+<style>
+  .live-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .live-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #16a34a;
+              animation: pulse 1.6s infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.85); } }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0 22px; }
+  .tile-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; box-shadow: var(--shadow-xs); }
+  .tile-stat .lbl { font-size: .78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .tile-stat .num { font-size: 1.7rem; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; }
+  .tile-stat.live   .num { color: var(--primary); }
+  .tile-stat.warn   .num { color: var(--warn); }
+  .tile-stat.danger .num { color: var(--danger); }
+
+  table.live { width: 100%; border-collapse: collapse; background: var(--card); border-radius: var(--radius-lg);
+    overflow: hidden; box-shadow: var(--shadow-xs); font-size: .92rem; border: 1px solid var(--border); }
+  table.live th, table.live td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.live th { background: var(--card-hover); font-weight: 600; font-size: .78rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  table.live tbody tr { cursor: pointer; transition: background .12s; }
+  table.live tbody tr:hover { background: var(--card-hover); }
+  table.live tbody tr:last-child td { border-bottom: 0; }
+  table.live tbody tr.new-row { animation: flash 2s ease-out; }
+  @keyframes flash { 0% { background: #dbeafe; } 100% { background: transparent; } }
+
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: .72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .03em; }
+  .pill.live     { background: #dbeafe; color: #1e40af; }
+  .pill.done     { background: #dcfce7; color: #166534; }
+  .pill.flag     { background: #fef3c7; color: #92400e; }
+  .pill.forced   { background: #fee2e2; color: #991b1b; }
+  .pill.abandon  { background: #e2e8f0; color: #475569; }
+
+  .empty { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 60px 20px; text-align: center; color: var(--text-muted); box-shadow: var(--shadow-xs); }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text-muted); }
+  .status-bar .live-dot.off { animation: none; opacity: .4; background: #94a3b8; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="subjects.html">Subjects</a>
+    <a href="questions.html">Questions</a>
+    <a href="quizzes.html" class="active">Quizzes</a>
+    <a href="settings.html">Settings</a>
+  </nav>
+  <div class="user">
+    <span class="email" id="userEmail"></span>
+    <button class="ghost small" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <div id="head"></div>
+  <div id="stats"></div>
+  <div id="body"></div>
+</main>
+
+<script type="module">
+import { requireAuth, signOut, getUser, escapeHtml, supabase } from '../assets/supabase.js';
+import { getQuiz } from '../assets/admin/results.js';
+
+const REFRESH_MS = 5000;
+
+const session = await requireAuth('index.html');
+if (!session) throw new Error('redirecting');
+const user = await getUser();
+document.getElementById('userEmail').textContent = user?.email || '';
+document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  e.preventDefault(); await signOut(); location.replace('index.html');
+});
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const QUIZ_ID = params.get('id');
+
+if (!QUIZ_ID) {
+  $('head').innerHTML = '<div class="card"><p>Missing quiz ID. <a href="quizzes.html">Go back</a>.</p></div>';
+  throw new Error('no quiz id');
+}
+
+let quiz = null;
+let knownAttemptIds = new Set();
+let pollTimer = null;
+let paused = false;
+
+async function boot() {
+  try {
+    quiz = await getQuiz(QUIZ_ID);
+    renderHead();
+    await refresh();
+    pollTimer = setInterval(refresh, REFRESH_MS);
+  } catch (err) {
+    $('head').innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderHead() {
+  $('head').innerHTML = `
+    <div class="card live-head">
+      <div>
+        <h1 style="margin:0 0 4px">
+          <span class="live-dot" id="liveDot"></span>Live · ${escapeHtml(quiz.title)}
+        </h1>
+        <div style="color:var(--text-muted);font-size:.9rem;margin-top:4px">
+          Auto-refreshing every 5 seconds · Code:
+          <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${escapeHtml(quiz.code)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="ghost small" id="btnPause">Pause auto-refresh</button>
+        <a class="btn ghost small" href="quiz-view.html?id=${quiz.id}">Results table</a>
+        <a class="btn ghost small" href="quizzes.html">All quizzes</a>
+      </div>
+    </div>`;
+
+  $('btnPause').addEventListener('click', () => {
+    paused = !paused;
+    if (paused) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      $('btnPause').textContent = 'Resume auto-refresh';
+      $('liveDot').classList.add('off');
+    } else {
+      pollTimer = setInterval(refresh, REFRESH_MS);
+      $('btnPause').textContent = 'Pause auto-refresh';
+      $('liveDot').classList.remove('off');
+      refresh();
+    }
+  });
+}
+
+async function refresh() {
+  const { data, error } = await supabase
+    .from('attempts')
+    .select('id, student_number, student_name, started_at, submitted_at, score, total_questions, percent, warning_count, submitted, abandoned, force_submitted, is_flagged, is_kept')
+    .eq('quiz_id', QUIZ_ID)
+    .order('started_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    $('body').innerHTML = `<div class="msg error">${escapeHtml(error.message)}</div>`;
+    return;
+  }
+
+  const attempts = data || [];
+  const newIds = new Set(attempts.map(a => a.id));
+
+  const justArrived = new Set();
+  if (knownAttemptIds.size > 0) {
+    for (const id of newIds) if (!knownAttemptIds.has(id)) justArrived.add(id);
+  }
+  knownAttemptIds = newIds;
+
+  renderStats(attempts);
+  renderTable(attempts, justArrived);
+}
+
+function renderStats(attempts) {
+  const inProgress = attempts.filter(a => !a.submitted && !a.abandoned).length;
+  const submitted = attempts.filter(a => a.submitted).length;
+  const flagged = attempts.filter(a => a.is_flagged).length;
+  const forced = attempts.filter(a => a.force_submitted).length;
+
+  $('stats').innerHTML = `
+    <div class="tiles">
+      <div class="tile-stat live"><div class="lbl">In progress</div><div class="num">${inProgress}</div></div>
+      <div class="tile-stat"><div class="lbl">Submitted</div><div class="num">${submitted}</div></div>
+      <div class="tile-stat warn"><div class="lbl">Flagged</div><div class="num">${flagged}</div></div>
+      <div class="tile-stat danger"><div class="lbl">Forced</div><div class="num">${forced}</div></div>
+    </div>`;
+}
+
+function renderTable(attempts, justArrived) {
+  if (!attempts.length) {
+    $('body').innerHTML = '<div class="empty">No attempts yet. Waiting for students to open the quiz…</div>';
+    return;
+  }
+
+  $('body').innerHTML = `
+    <table class="live">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Student No</th>
+          <th>Status</th>
+          <th>Warnings</th>
+          <th>Score</th>
+          <th>Started</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${attempts.map(a => {
+          const cls = justArrived.has(a.id) ? 'new-row' : '';
+          return `
+            <tr class="${cls}" data-id="${a.id}">
+              <td>${escapeHtml(a.student_name)}</td>
+              <td>${escapeHtml(a.student_number)}</td>
+              <td>${statusPill(a)}</td>
+              <td>${a.warning_count || 0}${a.is_flagged ? ' <span class="pill flag">flag</span>' : ''}</td>
+              <td>${a.submitted ? `${a.score}/${a.total_questions} (${a.percent}%)` : '—'}</td>
+              <td>${fmtRel(a.started_at)}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  $('body').querySelectorAll('tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => {
+      location.href = `quiz-view.html?id=${QUIZ_ID}&attempt=${tr.dataset.id}`;
+    });
+  });
+}
+
+function statusPill(a) {
+  if (a.abandoned) return '<span class="pill abandon">abandoned</span>';
+  if (a.submitted && a.force_submitted) return '<span class="pill forced">forced submit</span>';
+  if (a.submitted) return '<span class="pill done">submitted</span>';
+  return '<span class="pill live">in progress</span>';
+}
+
+function fmtRel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return d.toLocaleDateString();
+}
+
+boot();
+</script>
+</body>
+</html>
