@@ -113,7 +113,7 @@ async function beginQuiz(code, studentNumber, studentName) {
       current:          0,
       mode:             'quiz',
       editingFromReview: false,
-      warningCount:     0,
+      warningCount:     data.warning_count || 0,
       startedAt:        Date.now(),
       questions:        (data.questions || []).map(q => ({
         aa_id:             q.aa_id,
@@ -154,6 +154,9 @@ async function beginQuiz(code, studentNumber, studentName) {
 
     startElapsedTimer();
     installAntiCheat();
+    // Hook up the View All and Back to Quiz buttons
+    $('btnViewAll').addEventListener('click', goToReview);
+    $('btnBackToQuiz').addEventListener('click', () => goToQuestion(state.current));
     render();
     saveLocal();
   } catch (err) {
@@ -162,6 +165,7 @@ async function beginQuiz(code, studentNumber, studentName) {
     else if (/not active/i.test(msg))   showError('This quiz is not currently active. Please contact your teacher.', '⏸️');
     else if (/not open yet/i.test(msg)) showError('This quiz is not open yet. Please come back later or ask your teacher.', '🕒');
     else if (/expired/i.test(msg))      showError('This quiz has expired. Please contact your teacher.', '⏰');
+    else if (/already submitted/i.test(msg)) showError('You have already submitted this quiz.', '✅');
     else                                 showError('Could not start the quiz: ' + msg, '⚠️');
   }
 }
@@ -320,16 +324,17 @@ function updateBottomBar() {
 
   const q = state.questions[state.current];
   const answered = q.selectedChoiceId != null;
+  const isLast = state.current === state.questions.length - 1;
 
   if (state.editingFromReview) {
     btn.textContent = 'Save & back to review';
-    btn.disabled = !answered;
+    btn.disabled = false; // Allow skipping
     return;
   }
 
-  const isLast = state.current === state.questions.length - 1;
-  btn.textContent = isLast ? 'Review answers' : 'Next';
-  btn.disabled = !answered;
+  // Change button text based on if they answered
+  btn.textContent = isLast ? 'Review answers' : (answered ? 'Next' : 'Skip →');
+  btn.disabled = false; // <--- THIS ALLOWS SKIPPING
 }
 
 function updateWarningUI() {
@@ -380,10 +385,12 @@ async function handleNext() {
   }
 
   const q = state.questions[state.current];
-  if (!q.selectedChoiceId) return;
-
-  const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
-  try { await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec); } catch (_) {}
+  
+  // Only save the answer if they actually picked one!
+  if (q.selectedChoiceId) {
+    const sec = Math.max(1, Math.round((Date.now() - questionShownAt) / 1000));
+    try { await saveAnswer(state.attemptId, q.aa_id, q.selectedChoiceId, sec); } catch (_) {}
+  }
 
   if (state.editingFromReview) {
     goToReview();
@@ -495,7 +502,7 @@ function blockSelect(e) {
 }
 
 function onVisibility() { if (document.hidden) triggerWarning('tab_hidden'); }
-function onBlur()       { triggerWarning('window_blur'); }
+function onBlur() { if (document.hidden) triggerWarning('window_blur'); }
 function onPopState() {
   history.pushState({ quiz: true }, '', location.href);
   triggerWarning('back_button');
@@ -504,29 +511,33 @@ function onPageHide()   { if (state && !submitting) setCloseFlag(); }
 
 async function triggerWarning(reason) {
   if (!state || submitting || modalOpen) return;
-  if (Date.now() - lastWarningAt < 2500) return;
+  // 3 second cooldown so one phone unlock doesn't count as 3 violations
+  if (Date.now() - lastWarningAt < 3000) return; 
   lastWarningAt = Date.now();
 
   let newCount = state.warningCount + 1;
   try { newCount = await logEvent(state.attemptId, reason); } catch (_) {}
+  
   state.warningCount = newCount;
   updateWarningUI();
   saveLocal();
 
+  // INSTANTLY SUBMIT if they reached the limit (Don't wait for them to click a button)
+  if (newCount >= MAX_WARNINGS) {
+    doSubmit(true); 
+    return;
+  }
+
   modalOpen = true;
-  showWarningModal(newCount, newCount >= MAX_WARNINGS);
+  showWarningModal(newCount, false);
 }
 
-function showWarningModal(count, isFinal) {
+function showWarningModal(count) {
   const remaining = Math.max(0, MAX_WARNINGS - count);
-  $('warnCount').textContent = `Warning ${count} of ${WARN_MESSAGE_COUNT}`;
-  if (isFinal) {
-    $('warnBody').innerHTML = `You have reached the warning limit. Your quiz will be submitted now.`;
-  } else {
-    $('warnBody').innerHTML =
-      `Leaving this page is not allowed. ` +
-      `<br><span class="danger">${remaining} warning${remaining === 1 ? '' : 's'} left before your quiz is submitted automatically.</span>`;
-  }
+  $('warnCount').textContent = `Warning ${count} of ${MAX_WARNINGS - 1}`;
+  $('warnBody').innerHTML =
+    `Leaving this page is not allowed. ` +
+    `<br><span class="danger">${remaining} warning${remaining === 1 ? '' : 's'} left before your quiz is submitted automatically.</span>`;
   $('modalWarning').classList.remove('hidden');
 }
 

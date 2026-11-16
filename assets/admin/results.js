@@ -92,10 +92,18 @@ export async function setKept(attemptId, isKept) {
 }
 
 export async function setFlagged(attemptId, isFlagged) {
+  const updates = { is_flagged: isFlagged };
+  
+  // If the teacher is CLEARING the flag, reset the warnings to 0
+  if (!isFlagged) {
+    updates.warning_count = 0; 
+  }
+
   const { error } = await supabase
     .from('attempts')
-    .update({ is_flagged: isFlagged })
+    .update(updates)
     .eq('id', attemptId);
+    
   if (error) throw error;
 }
 

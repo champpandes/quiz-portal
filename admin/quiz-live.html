@@ -45,6 +45,35 @@
 
   .status-bar { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text-muted); }
   .status-bar .live-dot.off { animation: none; opacity: .4; background: #94a3b8; }
+
+    /* ---------- DRAWER ---------- */
+  .detail-back { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 100;
+    display: flex; justify-content: flex-end; backdrop-filter: blur(2px); }
+  .detail-back.hidden { display: none; }
+  .detail { background: var(--card); width: 100%; max-width: 620px; height: 100%; overflow-y: auto;
+    padding: 22px 22px 40px; box-shadow: -8px 0 24px rgba(0,0,0,.12); border-left: 1px solid var(--border); }
+  .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .detail-head h2 { margin: 0 0 4px; font-size: 1.1rem; }
+  .detail-meta { color: var(--text-muted); font-size: .87rem; }
+  .close-x { background: transparent; color: var(--text-muted); font-size: 1.4rem; padding: 4px 8px; cursor: pointer; border: 0; border-radius: 6px; }
+  .close-x:hover { background: var(--card-hover); color: var(--text); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .stat-grid .item { background: var(--bg); border-radius: 8px; padding: 10px 12px; border: 1px solid var(--border); }
+  .stat-grid .lbl { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat-grid .val { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+  .qa { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; background: var(--card); }
+  .qa-head { padding: 10px 14px; background: var(--bg); font-size: .82rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+  .qa-body { padding: 12px 14px; }
+  .qa-text { font-weight: 600; margin-bottom: 10px; font-size: .95rem; line-height: 1.45; }
+  .qa-choices { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+  .qa-choices li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; display: flex; gap: 8px; }
+  .qa-choices li.correct { background: var(--success-soft); color: var(--success); }
+  .qa-choices li.wrong { background: var(--danger-soft); color: var(--danger); }
+  .qa-choices li.picked { outline: 2px solid var(--border-strong); outline-offset: -2px; }
+  .qa-choices li .mark { font-weight: 700; flex: 0 0 20px; }
+  .events { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: .87rem; color: var(--text); }
+  .events h3 { margin: 0 0 8px; font-size: .9rem; color: var(--warn); }
+  .events ul { margin: 0; padding-left: 18px; }
 </style>
 </head>
 <body>
@@ -68,10 +97,15 @@
   <div id="stats"></div>
   <div id="body"></div>
 </main>
-
+<!-- ATTEMPT DETAIL DRAWER -->
+<div class="detail-back hidden" id="attemptDrawer">
+  <div class="detail" id="drawerContent">
+    <!-- Content will be injected here by JS -->
+  </div>
+</div>
 <script type="module">
 import { requireAuth, signOut, getUser, escapeHtml, supabase } from '../assets/supabase.js';
-import { getQuiz } from '../assets/admin/results.js';
+import { getQuiz, getAttemptDetail, setFlagged, setKept, deleteAttempt } from '../assets/admin/results.js';
 
 const REFRESH_MS = 10000;
 
@@ -220,7 +254,7 @@ function renderTable(attempts, justArrived) {
 
   $('body').querySelectorAll('tbody tr').forEach(tr => {
     tr.addEventListener('click', () => {
-      location.href = `quiz-view.html?id=${QUIZ_ID}&attempt=${tr.dataset.id}`;
+      openAttemptDrawer(tr.dataset.id);
     });
   });
 }
@@ -243,7 +277,132 @@ function fmtRel(iso) {
   if (h < 24) return `${h}h ago`;
   return d.toLocaleDateString();
 }
+async function openAttemptDrawer(attemptId) {
+  const drawer = $('attemptDrawer');
+  const content = $('drawerContent');
+  
+  drawer.classList.remove('hidden');
+  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Loading attempt details…</div>';
 
+  try {
+    const { attempt, answers, events } = await getAttemptDetail(attemptId);
+    
+    // Format events
+    const eventsHtml = events.length ? `
+      <div class="events">
+        <h3>⚠️ Anti-Cheat Events</h3>
+        <ul>${events.map(e => `<li>${e.event_type} at ${new Date(e.at).toLocaleTimeString()}</li>`).join('')}</ul>
+      </div>
+    ` : '';
+
+    // Format answers
+    const letters = ['A','B','C','D','E','F','G','H'];
+    const answersHtml = answers.map((ans, i) => {
+      const q = ans.questions;
+      
+      return `
+        <div class="qa">
+          <div class="qa-head">
+            <span>Question ${i + 1}</span>
+            <span>${ans.is_correct ? '✅ Correct' : (ans.choice_id ? '❌ Incorrect' : '⚪ Skipped')}</span>
+          </div>
+          <div class="qa-body">
+            <div class="qa-text">${escapeHtml(q?.text || '')}</div>
+            <ul class="qa-choices">
+              ${q?.choices?.map((c, ci) => {
+                let cls = '';
+                if (c.is_correct) cls = 'correct';
+                else if (c.id === ans.choice_id) cls = 'wrong';
+                if (c.id === ans.choice_id) cls += ' picked';
+                return `<li class="${cls}">
+                  <span class="mark">${letters[ci]}</span>
+                  <span>${escapeHtml(c.text)}</span>
+                </li>`;
+              }).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    content.innerHTML = `
+      <div class="detail-head">
+        <div>
+          <h2>${escapeHtml(attempt.student_name)}</h2>
+          <div class="detail-meta">
+            ${escapeHtml(attempt.student_number)} · ${attempt.submitted ? 'Submitted' : 'In Progress'}
+          </div>
+        </div>
+        <button class="close-x" onclick="document.getElementById('attemptDrawer').classList.add('hidden')">✕</button>
+      </div>
+      
+      <div class="stat-grid">
+        <div class="item">
+          <div class="lbl">Score</div>
+          <div class="val">${attempt.score ?? '—'} / ${attempt.total_questions}</div>
+        </div>
+        <div class="item">
+          <div class="lbl">Percentage</div>
+          <div class="val">${attempt.percent ? attempt.percent + '%' : '—'}</div>
+        </div>
+        <div class="item">
+          <div class="lbl">Warnings</div>
+          <div class="val" style="${attempt.warning_count > 0 ? 'color:var(--warn)' : ''}">${attempt.warning_count}</div>
+        </div>
+      </div>
+
+      <!-- ALWAYS VISIBLE ACTION BUTTONS -->
+      <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;">
+        <button class="ghost" id="btnKeep">
+          ⭐ ${attempt.is_kept ? 'Unkeep attempt' : 'Mark as kept'}
+        </button>
+        <button class="ghost" id="btnToggleFlag">
+          🚩 ${attempt.is_flagged ? 'Clear flag' : 'Flag this attempt'}
+        </button>
+        <button class="danger" id="btnDeleteAttempt">Delete attempt</button>
+      </div>
+
+      ${eventsHtml}
+      ${answersHtml}
+    `;
+
+    // Wire up the action buttons
+    $('btnToggleFlag').addEventListener('click', async () => {
+      try {
+        await setFlagged(attemptId, !attempt.is_flagged);
+        refresh(); // Refresh the main table
+        openAttemptDrawer(attemptId); // Reload the drawer
+      } catch (err) { alert(err.message); }
+    });
+
+    $('btnKeep').addEventListener('click', async () => {
+      try {
+        await setKept(attemptId, !attempt.is_kept);
+        refresh();
+        openAttemptDrawer(attemptId);
+      } catch (err) { alert(err.message); }
+    });
+
+    $('btnDeleteAttempt').addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to delete this attempt? This cannot be undone.')) return;
+      try {
+        await deleteAttempt(attemptId);
+        drawer.classList.add('hidden');
+        refresh(); 
+      } catch (err) { alert(err.message); }
+    });
+
+  } catch (err) {
+    content.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+// Close drawer when clicking outside
+$('attemptDrawer').addEventListener('click', (e) => {
+  if (e.target.id === 'attemptDrawer') {
+    e.target.classList.add('hidden');
+  }
+});
 boot();
 </script>
 </body>

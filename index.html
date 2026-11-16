@@ -121,7 +121,10 @@
         <div class="right" id="quizTitle"></div>
       </div>
       <div class="progress"><i id="progressFill"></i></div>
-      <div style="font-size:.85rem;color:#64748b;margin-bottom:16px" id="qCounter">Question 1 of 10</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div style="font-size:.85rem;color:#64748b" id="qCounter">Question 1 of 10</div>
+  <button class="ghost small" id="btnViewAll" style="padding: 4px 10px; font-size: 0.75rem;">View all</button>
+</div>
 
       <div id="passageBox" class="passage-box" style="display:none">
         <div id="passageTitle" class="p-title"></div>
@@ -136,9 +139,9 @@
   <!-- REVIEW -->
   <section class="screen" id="screen-review">
     <div class="card">
-      <div class="quiz-header">
-        <div>Review your answers</div>
-        <div class="right" id="reviewTitle"></div>
+      <div class="quiz-header" style="align-items: flex-start; flex-direction: column; gap: 10px;">
+        <button class="ghost small" id="btnBackToQuiz" style="align-self: flex-start;">← Back to quiz</button>
+        <div class="right" id="reviewTitle" style="align-self: flex-end; margin-top: -34px;"></div>
       </div>
       <p class="muted" style="margin:0 0 16px">
         Check everything before submitting. Click <strong>Edit</strong> on any question to change your answer.
