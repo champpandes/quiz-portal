@@ -1,10 +1,11 @@
 /* ============================================================
    SERVICE WORKER — Quiz Platform Champ
-   Stale-while-revalidate for the app shell.
+   Network-first for HTML/JS (so updates are instant).
+   Cache-first for images/CSS.
    Never caches Supabase API calls.
    ============================================================ */
 
-const CACHE_VERSION = 'quiz-champ-v3';
+const CACHE_VERSION = 'quiz-champ-v4'; // <-- BUMPED TO V4
 
 const SHELL = [
   './',
@@ -23,11 +24,8 @@ const SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) => {
-      // add each file, ignore failures (e.g. missing icon PNGs)
       return Promise.all(
-        SHELL.map(url =>
-          cache.add(url).catch(() => { /* skip missing */ })
-        )
+        SHELL.map(url => cache.add(url).catch(() => { /* skip missing */ }))
       );
     }).then(() => self.skipWaiting())
   );
@@ -57,6 +55,20 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.includes('/functions/')) return;
   if (url.origin !== self.location.origin) return;
 
+  // 1. NETWORK-FIRST for HTML and JS files
+  // This ensures you NEVER serve outdated code when deploying updates.
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/') {
+    event.respondWith(
+      fetch(req).then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_VERSION).then((cache) => cache.put(req, clone));
+        return response;
+      }).catch(() => caches.match(req)) // Fallback to cache if offline
+    );
+    return;
+  }
+
+  // 2. STALE-WHILE-REVALIDATE for CSS and Images (faster loading)
   event.respondWith(
     caches.match(req).then((cached) => {
       const networkFetch = fetch(req).then((response) => {
