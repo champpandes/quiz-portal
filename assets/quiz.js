@@ -144,19 +144,34 @@ async function beginQuiz(code, studentNumber, studentName) {
       if (saved.startedAt) state.startedAt = saved.startedAt;
     }
 
+        // 1. Check if they already hit the limit before even starting
+    if (state.warningCount >= MAX_WARNINGS) {
+      doSubmit(true);
+      return;
+    }
+
+    // 2. Check if closing the tab gave them their final warning
     const priorClose = consumeCloseFlag();
     if (priorClose) {
       try {
         const cnt = await logEvent(state.attemptId, 'tab_closed');
         state.warningCount = cnt;
+        
+        // If closing the tab was the final straw, force submit immediately
+        if (cnt >= MAX_WARNINGS) {
+          doSubmit(true);
+          return;
+        }
       } catch (_) { state.warningCount = 1; }
     }
 
     startElapsedTimer();
     installAntiCheat();
-    // Hook up the View All and Back to Quiz buttons
+    
+    // Wire up the View All and Back to Quiz buttons
     $('btnViewAll').addEventListener('click', goToReview);
     $('btnBackToQuiz').addEventListener('click', () => goToQuestion(state.current));
+
     render();
     saveLocal();
   } catch (err) {
