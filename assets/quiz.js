@@ -104,6 +104,25 @@ async function beginQuiz(code, studentNumber, studentName) {
   showScreen('loading');
   try {
     const data = await startAttempt(code, studentNumber, studentName);
+        // If the database says they already took it, show their score!
+    if (data.status === 'already_submitted') {
+      $('doneIcon').textContent = '✅';
+      $('doneTitle').textContent = 'Already Submitted';
+      $('doneSub').textContent = 'You have already taken this quiz.';
+      
+      if (data.show_score_at_end && data.score != null) {
+        $('doneScore').style.display = 'block';
+        $('doneScore').textContent = `${data.score} / ${data.total_questions}`;
+        $('donePercent').textContent = `${data.percent}%`;
+      } else {
+        $('doneScore').style.display = 'none';
+        $('donePercent').textContent = 'Your score will be shown by your teacher.';
+      }
+      
+      $('doneTime').style.display = 'none'; // Hide the timer since we are just showing the score
+      showScreen('done');
+      return;
+    }
 
     state = {
       attemptId:        data.attempt_id,
@@ -180,7 +199,6 @@ async function beginQuiz(code, studentNumber, studentName) {
     else if (/not active/i.test(msg))   showError('This quiz is not currently active. Please contact your teacher.', '⏸️');
     else if (/not open yet/i.test(msg)) showError('This quiz is not open yet. Please come back later or ask your teacher.', '🕒');
     else if (/expired/i.test(msg))      showError('This quiz has expired. Please contact your teacher.', '⏰');
-    else if (/already submitted/i.test(msg)) showError('You have already submitted this quiz.', '✅');
     else                                 showError('Could not start the quiz: ' + msg, '⚠️');
   }
 }
