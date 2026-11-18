@@ -163,6 +163,7 @@ import { requireAuth, signOut, getUser, escapeHtml, toast, fmtDate } from '../as
 import {
   listSubjectsForQuiz, countQuestionsInPeriod, listQuizzes, listQuizTopics,
   getPoolBreakdown, createQuiz, toggleQuizActive, deleteQuiz, getAttemptStats,
+  updateQuizTimeLimit,
   generateCode,
 } from '../assets/admin/quizzes.js';
 
@@ -252,6 +253,11 @@ function renderQuiz(q, stats, topics) {
         <a class="btn small" href="quiz-view.html?id=${q.id}">View results</a>
         <a class="btn ghost small" href="quiz-qr.html?id=${q.id}">🔳 QR</a>
         <a class="btn ghost small" href="quiz-preview.html?id=${q.id}">👁 Preview</a>
+
+        <a class="btn ghost small" href="quiz-preview.html?id=${q.id}">👁 Preview</a>
+        <button class="ghost small" data-action="edit-time" data-id="${q.id}" data-time="${q.time_limit_minutes || ''}">
+          ⏱ ${q.time_limit_minutes ? q.time_limit_minutes + ' min limit' : 'Set time limit'}
+        </button>
         <button class="ghost small" data-action="toggle" data-id="${q.id}" data-active="${q.is_active}">
           ${q.is_active ? 'Deactivate' : 'Activate'}
         </button>
@@ -283,6 +289,21 @@ function attachHandlers() {
       const url = btn.dataset.copy;
       try { await navigator.clipboard.writeText(url); toast('Link copied to clipboard', 'success'); }
       catch { prompt('Copy this link:', url); }
+    });
+  });
+
+    document.querySelectorAll('[data-action="edit-time"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const current = btn.dataset.time;
+      const input = prompt("Enter time limit in minutes (leave blank or 0 for no time limit):", current);
+      if (input === null) return; 
+      
+      const minutes = parseInt(input, 10) || null;
+      try {
+        await updateQuizTimeLimit(btn.dataset.id, minutes);
+        toast('Time limit updated', 'success');
+        refreshList(); 
+      } catch (err) { toast(err.message, 'error'); }
     });
   });
   document.querySelectorAll('[data-action="toggle"]').forEach(btn => {
