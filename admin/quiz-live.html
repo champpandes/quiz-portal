@@ -224,11 +224,10 @@ function renderStats(attempts) {
 }
 
 function getStatusWeight(a) {
-  if (a.force_submitted) return 1;
-  if (a.is_flagged) return 2;
-  if (a.abandoned) return 3;
-  if (!a.submitted) return 4;
-  return 5;
+  if (a.abandoned) return 4;
+  if (a.submitted && a.force_submitted) return 3;
+  if (a.submitted) return 2;
+  return 1; // Everything else (including flagged) groups together as "In Progress"
 }
 
 function renderTable(attempts, justArrived) {
