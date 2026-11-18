@@ -14,6 +14,13 @@
   .toggle-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 16px 0; }
   .toggle-row label { display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); }
 
+  /* Sorting pills */
+  .sort-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; background: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: var(--shadow-sm); }
+  .sort-bar span { font-size: .85rem; font-weight: 600; color: var(--muted); margin-right: 8px; }
+  .sort-btn { background: #f1f5f9; border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 99px; font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .sort-btn:hover { background: #e2e8f0; }
+  .sort-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
   .pool-note {
     background: #eff4ff; color: #1e40af;
     padding: 10px 14px; border-radius: 8px;
@@ -48,7 +55,7 @@
   .key-note { font-size: .8rem; color: var(--muted); margin-top: 8px; font-style: italic; }
 
   @media print {
-    .topbar, .toolbar-actions, .toggle-row, .no-print { display: none !important; }
+    .topbar, .toolbar-actions, .toggle-row, .no-print, .sort-bar { display: none !important; }
     body { background: #fff; font-size: 12pt; }
     .container { max-width: 100%; padding: 0; }
     .card, .q-card { box-shadow: none !important; border: 1px solid #ddd; }
@@ -98,6 +105,16 @@
   </div>
 
   <div id="poolNote"></div>
+
+  <div class="sort-bar no-print" id="sortBar">
+    <span>Sort by:</span>
+    <button class="sort-btn active" data-sort="default">Default</button>
+    <button class="sort-btn" data-sort="served">Served Count</button>
+    <button class="sort-btn" data-sort="topic">Topic</button>
+    <button class="sort-btn" data-sort="passage">Passage</button>
+    <button class="sort-btn" data-sort="text">Question Text</button>
+  </div>
+
   <div id="questions"></div>
 </main>
 
@@ -125,6 +142,8 @@ if (!QUIZ_ID) {
 
 let quiz = null;
 let questions = [];
+let currentSort = 'default';
+let sortAsc = true;
 
 async function load() {
   $('head').innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
@@ -180,13 +199,31 @@ function renderQuestions() {
   const shuffle = $('toggleShuffle').checked;
 
   let list = questions.slice();
-  if (shuffle) list = shuffleArray(list);
+
+  // Apply Sorting
+  if (currentSort === 'served') {
+    list.sort((a, b) => (a.served_count || 0) - (b.served_count || 0));
+  } else if (currentSort === 'topic') {
+    list.sort((a, b) => (a.topics?.name || 'zzz').localeCompare(b.topics?.name || 'zzz'));
+  } else if (currentSort === 'passage') {
+    list.sort((a, b) => (a.passages?.title || 'zzz').localeCompare(b.passages?.title || 'zzz'));
+  } else if (currentSort === 'text') {
+    list.sort((a, b) => (a.text || '').localeCompare(b.text || ''));
+  }
+
+  if (!sortAsc && currentSort !== 'default') {
+    list.reverse();
+  }
+
+  if (shuffle && currentSort === 'default') {
+    list = shuffleArray(list);
+  }
 
   const letters = ['A','B','C','D','E','F','G','H'];
 
   $('questions').innerHTML = list.map((q, idx) => {
     const choices = (q.choices || []).slice().sort((a, b) => a.position - b.position);
-    const choiceList = shuffle && !showKey ? shuffleArray(choices) : choices;
+    const choiceList = (shuffle && !showKey && currentSort === 'default') ? shuffleArray(choices) : choices;
 
     const passageHtml = q.passages ? `
       <div class="passage-box">
@@ -220,13 +257,40 @@ function renderQuestions() {
 function wireToggles() {
   $('toggleKey').addEventListener('change', renderQuestions);
   $('toggleShuffle').addEventListener('change', renderQuestions);
-  $('btnPrint').addEventListener('click', () => window.print());
 
+  $('btnPrint').addEventListener('click', () => window.print());
   $('btnPrintKeyOnly').addEventListener('click', () => {
     $('toggleKey').checked = true;
     $('toggleShuffle').checked = false;
     renderQuestions();
     setTimeout(() => window.print(), 100);
+  });
+
+  // Sort Buttons
+  $('sortBar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.sort-btn');
+    if (!btn) return;
+    
+    const sortVal = btn.dataset.sort;
+    
+    if (currentSort === sortVal) {
+      sortAsc = !sortAsc; // Toggle direction
+    } else {
+      currentSort = sortVal;
+      sortAsc = true; // Default to ascending
+    }
+
+    // Update UI
+    $('sortBar').querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    btn.textContent = btn.textContent.replace(/ ↑| ↓/g, '') + (sortAsc ? ' ↑' : ' ↓');
+    
+    // Remove arrows from other buttons
+    $('sortBar').querySelectorAll('.sort-btn').forEach(b => {
+      if (b !== btn) b.textContent = b.textContent.replace(/ ↑| ↓/g, '');
+    });
+
+    renderQuestions();
   });
 }
 

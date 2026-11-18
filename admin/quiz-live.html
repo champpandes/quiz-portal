@@ -25,7 +25,8 @@
     overflow: hidden; box-shadow: var(--shadow-xs); font-size: .92rem; border: 1px solid var(--border); }
   table.live th, table.live td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
   table.live th { background: var(--card-hover); font-weight: 600; font-size: .78rem; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: .04em; }
+    text-transform: uppercase; letter-spacing: .04em; cursor: pointer; user-select: none; white-space: nowrap; }
+  table.live th:hover { background: var(--border); color: var(--text); }
   table.live tbody tr { cursor: pointer; transition: background .12s; }
   table.live tbody tr:hover { background: var(--card-hover); }
   table.live tbody tr:last-child td { border-bottom: 0; }
@@ -46,7 +47,7 @@
   .status-bar { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--text-muted); }
   .status-bar .live-dot.off { animation: none; opacity: .4; background: #94a3b8; }
 
-    /* ---------- DRAWER ---------- */
+  /* ---------- DRAWER ---------- */
   .detail-back { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 100;
     display: flex; justify-content: flex-end; backdrop-filter: blur(2px); }
   .detail-back.hidden { display: none; }
@@ -97,12 +98,12 @@
   <div id="stats"></div>
   <div id="body"></div>
 </main>
+
 <!-- ATTEMPT DETAIL DRAWER -->
 <div class="detail-back hidden" id="attemptDrawer">
-  <div class="detail" id="drawerContent">
-    <!-- Content will be injected here by JS -->
-  </div>
+  <div class="detail" id="drawerContent"></div>
 </div>
+
 <script type="module">
 import { requireAuth, signOut, getUser, escapeHtml, supabase } from '../assets/supabase.js';
 import { getQuiz, getAttemptDetail, setFlagged, setKept, deleteAttempt } from '../assets/admin/results.js';
@@ -130,6 +131,10 @@ let quiz = null;
 let knownAttemptIds = new Set();
 let pollTimer = null;
 let paused = false;
+
+// Sorting state
+let sortColumn = 'started_at';
+let sortAsc = false;
 
 async function boot() {
   try {
@@ -218,24 +223,63 @@ function renderStats(attempts) {
     </div>`;
 }
 
+function getStatusWeight(a) {
+  if (a.force_submitted) return 1;
+  if (a.is_flagged) return 2;
+  if (a.abandoned) return 3;
+  if (!a.submitted) return 4;
+  return 5;
+}
+
 function renderTable(attempts, justArrived) {
   if (!attempts.length) {
     $('body').innerHTML = '<div class="empty">No attempts yet. Waiting for students to open the quiz…</div>';
     return;
   }
 
+  // Sort the array
+  attempts.sort((a, b) => {
+    let valA = a[sortColumn], valB = b[sortColumn];
+
+    if (sortColumn === 'status') {
+      valA = getStatusWeight(a);
+      valB = getStatusWeight(b);
+    } else if (sortColumn === 'student_name') {
+      valA = (valA || '').toLowerCase();
+      valB = (valB || '').toLowerCase();
+    } else if (sortColumn === 'score') {
+      valA = a.score || 0;
+      valB = b.score || 0;
+    } else if (sortColumn === 'warning_count') {
+      valA = a.warning_count || 0;
+      valB = b.warning_count || 0;
+    } else if (sortColumn === 'started_at' || sortColumn === 'submitted_at') {
+      valA = valA ? new Date(valA).getTime() : 0;
+      valB = valB ? new Date(valB).getTime() : 0;
+    }
+
+    if (valA < valB) return sortAsc ? -1 : 1;
+    if (valA > valB) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const getArrow = (col) => {
+    if (sortColumn !== col) return '';
+    return sortAsc ? ' ↑' : ' ↓';
+  };
+
   $('body').innerHTML = `
     <table class="live">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Student No</th>
-          <th>Status</th>
-          <th>Warnings</th>
-                  <th>Score</th>
-                  <th>Started</th>
-                  <th>Finished</th>
-                </tr>
+          <th data-sort="student_name">Name${getArrow('student_name')}</th>
+          <th data-sort="student_number">Student No${getArrow('student_number')}</th>
+          <th data-sort="status">Status${getArrow('status')}</th>
+          <th data-sort="warning_count">Warnings${getArrow('warning_count')}</th>
+          <th data-sort="score">Score${getArrow('score')}</th>
+          <th data-sort="started_at">Started${getArrow('started_at')}</th>
+          <th data-sort="submitted_at">Finished${getArrow('submitted_at')}</th>
+        </tr>
       </thead>
       <tbody>
         ${attempts.map(a => {
@@ -254,6 +298,20 @@ function renderTable(attempts, justArrived) {
       </tbody>
     </table>`;
 
+  // Header click listeners
+  $('body').querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (sortColumn === col) {
+        sortAsc = !sortAsc; // Toggle direction
+      } else {
+        sortColumn = col;
+        sortAsc = true; // Default to ascending for new column
+      }
+      refresh(); // Re-render immediately
+    });
+  });
+
   $('body').querySelectorAll('tbody tr').forEach(tr => {
     tr.addEventListener('click', () => {
       openAttemptDrawer(tr.dataset.id);
@@ -268,18 +326,6 @@ function statusPill(a) {
   return '<span class="pill live">in progress</span>';
 }
 
-function fmtRel(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return d.toLocaleDateString();
-}
-
 function fmtExactTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -287,6 +333,10 @@ function fmtExactTime(iso) {
   const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return `${dateStr}, ${timeStr}`;
 }
+
+/* ============================================================
+   DRAWER LOGIC
+   ============================================================ */
 async function openAttemptDrawer(attemptId) {
   const drawer = $('attemptDrawer');
   const content = $('drawerContent');
@@ -297,7 +347,6 @@ async function openAttemptDrawer(attemptId) {
   try {
     const { attempt, answers, events } = await getAttemptDetail(attemptId);
     
-    // Format events
     const eventsHtml = events.length ? `
       <div class="events">
         <h3>⚠️ Anti-Cheat Events</h3>
@@ -305,11 +354,9 @@ async function openAttemptDrawer(attemptId) {
       </div>
     ` : '';
 
-    // Format answers
     const letters = ['A','B','C','D','E','F','G','H'];
     const answersHtml = answers.map((ans, i) => {
       const q = ans.questions;
-      
       return `
         <div class="qa">
           <div class="qa-head">
@@ -361,7 +408,6 @@ async function openAttemptDrawer(attemptId) {
         </div>
       </div>
 
-      <!-- ALWAYS VISIBLE ACTION BUTTONS -->
       <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;">
         <button class="ghost" id="btnKeep">
           ⭐ ${attempt.is_kept ? 'Unkeep attempt' : 'Mark as kept'}
@@ -376,12 +422,11 @@ async function openAttemptDrawer(attemptId) {
       ${answersHtml}
     `;
 
-    // Wire up the action buttons
     $('btnToggleFlag').addEventListener('click', async () => {
       try {
         await setFlagged(attemptId, !attempt.is_flagged);
-        refresh(); // Refresh the main table
-        openAttemptDrawer(attemptId); // Reload the drawer
+        refresh(); 
+        openAttemptDrawer(attemptId); 
       } catch (err) { alert(err.message); }
     });
 
@@ -407,12 +452,12 @@ async function openAttemptDrawer(attemptId) {
   }
 }
 
-// Close drawer when clicking outside
 $('attemptDrawer').addEventListener('click', (e) => {
   if (e.target.id === 'attemptDrawer') {
     e.target.classList.add('hidden');
   }
 });
+
 boot();
 </script>
 </body>
