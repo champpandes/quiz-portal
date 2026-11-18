@@ -31,9 +31,7 @@ export async function countQuestionsInPeriod(periodId) {
   return count || 0;
 }
 
-/** Question pool broken down by topic for a given period. */
 export async function getPoolBreakdown(periodId) {
-  // Fetch topics + counts
   const { data: topics, error: tErr } = await supabase
     .from('topics')
     .select('id, name')
@@ -41,7 +39,6 @@ export async function getPoolBreakdown(periodId) {
     .order('name');
   if (tErr) throw tErr;
 
-  // Fetch all questions with their topic_id
   const { data: questions, error: qErr } = await supabase
     .from('questions')
     .select('id, topic_id')
@@ -72,7 +69,7 @@ export async function listQuizzes() {
     .select(`
       id, title, code, num_questions, is_active, created_at, opens_at, expires_at,
       shuffle_questions, shuffle_choices, show_score_at_end, use_topics, untagged_num,
-      subject_id, period_id,
+      subject_id, period_id, time_limit_minutes,
       subjects(name),
       periods(name)
     `)
@@ -110,9 +107,7 @@ export async function createQuiz(input) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
 
-  /* ---- validate pool size ---- */
   if (input.use_topics) {
-    /* per-topic check */
     const breakdown = await getPoolBreakdown(input.period_id);
     const topicCounts = {};
     breakdown.topics.forEach(t => { topicCounts[t.id] = t.count; });
@@ -148,7 +143,6 @@ export async function createQuiz(input) {
     }
   }
 
-  /* ---- insert the quiz ---- */
   const { data, error } = await supabase
     .from('quizzes')
     .insert({
@@ -165,6 +159,7 @@ export async function createQuiz(input) {
       expires_at: input.expires_at || null,
       use_topics: !!input.use_topics,
       untagged_num: input.use_topics ? (input.untagged_num || 0) : 0,
+      time_limit_minutes: input.time_limit_minutes || null,
     })
     .select()
     .single();
@@ -174,7 +169,6 @@ export async function createQuiz(input) {
     throw error;
   }
 
-  /* ---- insert topic weights ---- */
   if (input.use_topics && input.topics?.length) {
     const topicRows = input.topics
       .filter(t => t.num_questions > 0)

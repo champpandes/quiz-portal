@@ -130,6 +130,13 @@
       <div class="switch"><input type="checkbox" id="qShuffleC" checked> <label for="qShuffleC">Shuffle answer choices</label></div>
       <div class="switch"><input type="checkbox" id="qShowScore" checked> <label for="qShowScore">Show score to student after submit</label></div>
 
+      <!-- NEW TIME LIMIT FIELD -->
+      <label class="field" style="margin-top:12px">
+        <span>Time Limit (minutes)</span>
+        <input type="number" id="qTimeLimit" min="1" placeholder="Leave blank for no limit">
+        <div class="hint">If enabled, the quiz will auto-submit when time runs out.</div>
+      </label>
+
       <div class="row-2" style="margin-top:12px">
         <label class="field">
           <span>Opens at (optional)</span>
@@ -169,11 +176,8 @@ document.getElementById('btnLogout').addEventListener('click', async (e) => {
 
 const $ = id => document.getElementById(id);
 let subjects = [];
-let currentBreakdown = null; // { topics:[{id,name,count}], untagged, total }
+let currentBreakdown = null;
 
-/* ============================================================
-   LIST
-   ============================================================ */
 async function refreshList() {
   const el = $('quizList');
   el.innerHTML = '<div class="card"><p style="color:var(--muted)">Loading…</p></div>';
@@ -184,7 +188,6 @@ async function refreshList() {
       return;
     }
 
-    // fetch stats + topic labels in parallel
     const enriched = await Promise.all(quizzes.map(async q => {
       const [stats, topics] = await Promise.all([
         getAttemptStats(q.id),
@@ -301,9 +304,6 @@ function attachHandlers() {
   });
 }
 
-/* ============================================================
-   MODAL
-   ============================================================ */
 const modal = $('modalQuiz');
 const selSubject = $('qSubject');
 const selPeriod  = $('qPeriod');
@@ -383,7 +383,6 @@ function renderTopicPanel() {
 
   const rows = [];
 
-  /* per-topic rows */
   topics.forEach(t => {
     rows.push(`
       <div class="topic-alloc" data-topic-id="${t.id}" data-topic-name="${escapeHtml(t.name)}">
@@ -394,7 +393,6 @@ function renderTopicPanel() {
       </div>`);
   });
 
-  /* untagged row (only if there are untagged questions) */
   if (untagged > 0) {
     rows.push(`
       <div class="topic-alloc" data-untagged="1">
@@ -410,7 +408,6 @@ function renderTopicPanel() {
   topicListEl.innerHTML = rows.join('');
   updateTotal();
 
-  /* wire up checkbox → enable/disable number input */
   topicListEl.querySelectorAll('.topic-alloc').forEach(row => {
     const chk = row.querySelector('[data-topic-check]');
     const num = row.querySelector('[data-topic-num]');
@@ -438,7 +435,6 @@ function updateTotal() {
     : `<span class="ok">${total}</span>`;
 }
 
-/* gather the current allocation from the panel */
 function gatherTopicAllocation() {
   const picks = [];
   let untaggedNum = 0;
@@ -469,6 +465,7 @@ function openModal() {
   $('qShowScore').checked = true;
   $('qOpens').value = '';
   $('qExpires').value = '';
+  $('qTimeLimit').value = ''; 
   $('quizErr').classList.add('hidden');
   $('qCode').value = generateCode();
 
@@ -490,9 +487,6 @@ function openModal() {
 $('btnNewQuiz').addEventListener('click', openModal);
 $('btnCancelQuiz').addEventListener('click', () => modal.classList.add('hidden'));
 
-/* ============================================================
-   CREATE
-   ============================================================ */
 $('formQuiz').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = $('quizErr');
@@ -509,6 +503,7 @@ $('formQuiz').addEventListener('submit', async (e) => {
     opens_at: $('qOpens').value ? new Date($('qOpens').value).toISOString() : null,
     expires_at: $('qExpires').value ? new Date($('qExpires').value).toISOString() : null,
     use_topics: useTopics.checked,
+    time_limit_minutes: parseInt($('qTimeLimit').value, 10) || null,
   };
 
   if (!payload.title) { errEl.textContent = 'Enter a title.'; errEl.classList.remove('hidden'); return; }
@@ -550,9 +545,6 @@ $('formQuiz').addEventListener('submit', async (e) => {
   }
 });
 
-/* ============================================================
-   INIT
-   ============================================================ */
 await loadSubjects();
 refreshList();
 </script>
