@@ -232,9 +232,10 @@ function renderTable(attempts, justArrived) {
           <th>Student No</th>
           <th>Status</th>
           <th>Warnings</th>
-          <th>Score</th>
-          <th>Started</th>
-        </tr>
+                  <th>Score</th>
+                  <th>Started</th>
+                  <th>Finished</th>
+                </tr>
       </thead>
       <tbody>
         ${attempts.map(a => {
@@ -246,7 +247,8 @@ function renderTable(attempts, justArrived) {
               <td>${statusPill(a)}</td>
               <td>${a.warning_count || 0}${a.is_flagged ? ' <span class="pill flag">flag</span>' : ''}</td>
               <td>${a.submitted ? `${a.score}/${a.total_questions} (${a.percent}%)` : '—'}</td>
-              <td>${fmtRel(a.started_at)}</td>
+              <td>${fmtExactTime(a.started_at)}</td>
+              <td>${a.submitted_at ? fmtExactTime(a.submitted_at) : '—'}</td>
             </tr>`;
         }).join('')}
       </tbody>
@@ -277,6 +279,14 @@ function fmtRel(iso) {
   if (h < 24) return `${h}h ago`;
   return d.toLocaleDateString();
 }
+
+function fmtExactTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${dateStr}, ${timeStr}`;
+}
 async function openAttemptDrawer(attemptId) {
   const drawer = $('attemptDrawer');
   const content = $('drawerContent');
@@ -291,7 +301,7 @@ async function openAttemptDrawer(attemptId) {
     const eventsHtml = events.length ? `
       <div class="events">
         <h3>⚠️ Anti-Cheat Events</h3>
-        <ul>${events.map(e => `<li>${e.event_type} at ${new Date(e.at).toLocaleTimeString()}</li>`).join('')}</ul>
+        <ul>${events.map(e => `<li><strong>${new Date(e.at).toLocaleDateString()}</strong> at ${new Date(e.at).toLocaleTimeString()} - ${e.event_type}</li>`).join('')}</ul>
       </div>
     ` : '';
 
