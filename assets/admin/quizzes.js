@@ -201,3 +201,10 @@ export async function deleteQuiz(quizId) {
   const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
   if (error) throw error;
 }
+export async function updateQuizTimeLimit(quizId, minutes) {
+  const { error } = await supabase
+    .from('quizzes')
+    .update({ time_limit_minutes: minutes })
+    .eq('id', quizId);
+  if (error) throw error;
+}
